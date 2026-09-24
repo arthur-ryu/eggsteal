@@ -8,7 +8,6 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Render 환경 변수(MONGO_URI)를 우선 사용하고, 없으면 로컬 DB를 바라보게 안전하게 설정
 const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017';
 const dbName = 'egg_game_db';
 let db;
@@ -148,6 +147,7 @@ app.post('/api/hatch', async (req, res) => {
     const username = req.cookies.auth_user;
     const { eggName } = req.body;
     const user = await db.collection('users').findOne({ username });
+    if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
 
     const eggIndex = user.inventory.indexOf(eggName);
     if (eggIndex === -1) return res.json({ success: false, message: '알이 존재하지 않습니다.' });
@@ -155,6 +155,8 @@ app.post('/api/hatch', async (req, res) => {
     user.inventory.splice(eggIndex, 1);
 
     const pool = PET_POOLS[eggName];
+    if (!pool) return res.json({ success: false, message: '잘못된 알입니다.' });
+
     let weights = [];
     let totalWeight = 0;
     for(let i = 0; i < pool.length; i++) {
@@ -184,9 +186,11 @@ app.post('/api/buy', async (req, res) => {
     const username = req.cookies.auth_user;
     const { itemName } = req.body;
     const user = await db.collection('users').findOne({ username });
+    if (!user) return res.json({ success: false });
 
     const itemData = SHOP_ITEMS[itemName];
     if (!itemData) return res.json({ success: false });
+    if (user.inventory.includes(itemName)) return res.json({ success: false, message: '이미 보유 중인 아이템입니다.' });
 
     if (user.money >= itemData.price) {
         user.money -= itemData.price;
@@ -198,10 +202,17 @@ app.post('/api/buy', async (req, res) => {
     }
 });
 
+// 콘솔 조작 방지: 오직 정상적인 게임 내 스테이지 인덱스(0~5)만 허용
 app.post('/api/escape', async (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex } = req.body;
+    
+    if (stageIndex === undefined || stageIndex < 0 || stageIndex >= STAGES.length) {
+        return res.json({ success: false, message: '비정상적인 접근입니다.' });
+    }
+
     const user = await db.collection('users').findOne({ username });
+    if (!user) return res.json({ success: false });
 
     const stage = STAGES[stageIndex];
     user.inventory.push(stage.eggName);
@@ -210,9 +221,30 @@ app.post('/api/escape', async (req, res) => {
     res.json({ success: true, eggName: stage.eggName, inventory: user.inventory });
 });
 
+// 펫 ID 위변조 방지: 유저가 실제로 보유한 펫 ID만 장착 목록에 포함되도록 검증
 app.post('/api/equip', async (req, res) => {
     const username = req.cookies.auth_user;
     const { equipped, equippedPets } = req.body;
-    await db.collection('users').updateOne({ username }, { $set: { equipped, equippedPets } });
-    res.json({ success: true });
+    const user = await db.collection('users').findOne({ username });
+    if (!user) return res.json({ success: false });
+
+    if (equipped && !user.inventory.includes(equipped)) {
+        return res.json({ success: false, message: '보유하지 않은 장비입니다.' });
+    }
+
+    let validEquippedPets = [];
+    if (Array.isArray(equippedPets)) {
+        for (let petId of equippedPets) {
+            let foundPet = user.pets.find(p => p.id === petId);
+            if (foundPet && !validEquippedPets.includes(petId)) {
+                validEquippedPets.push(petId);
+            }
+        }
+        if (validEquippedPets.length > 7) {
+            validEquippedPets = validEquippedPets.slice(0, 7);
+        }
+    }
+
+    await db.collection('users').updateOne({ username }, { $set: { equipped, equippedPets: validEquippedPets } });
+    res.json({ success: true, equippedPets: validEquippedPets });
 });
