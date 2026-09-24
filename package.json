@@ -1,0 +1,14 @@
+{
+  "name": "click-to-steal-egg",
+  "version": "1.0.0",
+  "description": "Click to Steal EGG Game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^5.2.1",
+    "mongodb": "^7.6.0"
+  }
+}

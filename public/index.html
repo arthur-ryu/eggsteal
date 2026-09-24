@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Click to Steal EGG</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Noto+Sans+KR:wght@400;700;900&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans KR', sans-serif; user-select: none; }
+        body { background-color: #050510; overflow: hidden; color: #fff; }
+
+        #orientation-warning {
+            display: none; position: fixed; inset: 0; background: #050510; color: #00e5ff;
+            z-index: 9999; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 28px; font-weight: 900; text-align: center;
+        }
+        @media screen and (orientation: portrait) { #orientation-warning { display: flex; } #game-container { display: none !important; } }
+
+        #game-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #000; }
+        #bg-layer { position: absolute; inset: -10%; background-size: cover; background-position: center; background-repeat: no-repeat; z-index: 0; transition: transform 0.1s linear; }
+        .overlay { position: absolute; inset: 0; background: radial-gradient(circle, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%); z-index: 1; display: none; }
+
+        #intro-screen {
+            display: none; position: fixed; inset: 0; background: #000; z-index: 9999;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+        #intro-image {
+            width: 100%; height: 100%; position: absolute; inset: 0;
+            background-image: url('intro.png'); background-size: 100% 300%; background-position: 0 0; 
+            opacity: 0; transition: opacity 1.5s ease-in-out;
+        }
+        #intro-start-btn {
+            z-index: 10000; padding: 20px 50px; font-size: 24px; font-weight: 900; 
+            background: transparent; color: #fff; border: 2px solid #fff; border-radius: 12px;
+            cursor: pointer; transition: 0.3s; box-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }
+        #intro-start-btn:hover { background: #fff; color: #000; }
+
+        .title {
+            position: absolute; top: 10%; left: 0; width: 100%; text-align: center;
+            font-family: 'Orbitron', sans-serif; font-size: clamp(40px, 6vw, 100px); font-weight: 900;
+            background: linear-gradient(90deg, #00f2fe, #4facfe, #00f2fe);
+            background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            -webkit-text-stroke: 3px #000; animation: shine 3s linear infinite; z-index: 10;
+            filter: drop-shadow(0px 10px 20px rgba(0, 0, 0, 0.9)); display: none;
+        }
+        @keyframes shine { to { background-position: 200% center; } }
+
+        #auth-container {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(10, 15, 30, 0.7); padding: 50px 40px; border-radius: 24px;
+            border: 1px solid rgba(0, 242, 254, 0.3); box-shadow: 0 0 40px rgba(0, 242, 254, 0.2); backdrop-filter: blur(15px); display: flex; flex-direction: column; gap: 20px; z-index: 20; width: 90%; max-width: 450px; text-align: center;
+        }
+        #auth-container input { padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); font-size: 18px; outline: none; background: rgba(0,0,0,0.5); color: #fff; }
+        .auth-btn-group { display: flex; gap: 15px; margin-top: 10px; }
+        .auth-btn-group button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-size: 20px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; box-shadow: 0 0 15px rgba(0, 242, 254, 0.4); }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2) !important; }
+        .btn-primary:hover, .btn-secondary:hover { transform: translateY(-2px); filter: brightness(1.2); }
+
+        #start-run-btn-wrapper { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 15; display: none; flex-direction: column; align-items: center; gap: 20px; transition: 0.4s; }
+        .start-run-btn { padding: 25px 70px; font-size: 32px; font-weight: 900; background: linear-gradient(135deg, #ff0844, #ffb199); color: #fff; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 10px 30px rgba(255, 8, 68, 0.5); transition: 0.2s; }
+        .start-run-btn:hover { transform: scale(1.05); box-shadow: 0 15px 40px rgba(255, 8, 68, 0.7); }
+
+        #map-panel { position: absolute; right: -450px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 12px; z-index: 25; background: rgba(10, 15, 30, 0.8); padding: 30px; border-radius: 20px; border: 1px solid rgba(0,242,254,0.3); backdrop-filter: blur(10px); transition: right 0.4s ease; }
+        .map-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .map-close-btn { background: none; border: none; color: #fff; font-size: 24px; font-weight: bold; cursor: pointer; }
+        .map-close-btn:hover { color: #ff0844; }
+        .map-btn { padding: 15px 25px; font-size: 18px; font-weight: 700; text-align: left; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: pointer; transition: 0.2s; }
+        .map-btn:hover { background: rgba(0, 242, 254, 0.2); border-color: #00f2fe; transform: translateX(-10px); }
+
+        #online-users-btn { position: absolute; top: 20px; right: 20px; z-index: 50; display: none; padding: 12px 20px; font-size: 16px; font-weight: bold; background: rgba(0,0,0,0.6); color: #00f2fe; border: 1px solid rgba(0,242,254,0.5); border-radius: 12px; cursor: pointer; backdrop-filter: blur(5px); transition: 0.2s; }
+        #online-users-btn:hover { background: rgba(0,242,254,0.2); color: #fff; }
+
+        #lobby-return-btn { position: absolute; top: 70px; right: 20px; z-index: 50; display: none; padding: 12px 20px; font-size: 16px; font-weight: bold; background: rgba(0,0,0,0.6); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 12px; cursor: pointer; backdrop-filter: blur(5px); transition: 0.2s; }
+        #lobby-return-btn:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
+
+        #running-overlay { display: none; position: absolute; inset: 0; z-index: 10; cursor: pointer; }
+        #ingame-ui { display: none; width: 100%; height: 100%; position: absolute; z-index: 20; pointer-events: none; }
+        
+        .sidebar { position: absolute; left: 30px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 15px; pointer-events: auto; }
+        .sq-btn { width: 80px; height: 80px; background: rgba(10, 15, 30, 0.8); border: 1px solid rgba(0,242,254,0.3); border-radius: 18px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 13px; font-weight: 700; color: #00f2fe; cursor: pointer; backdrop-filter: blur(5px); transition: 0.2s; }
+        .sq-btn span { font-size: 26px; margin-bottom: 5px; }
+
+        .status-box { position: absolute; bottom: 30px; left: 30px; background: rgba(10, 15, 30, 0.8); padding: 20px 30px; border-radius: 20px; border: 1px solid rgba(0,242,254,0.3); font-size: 20px; font-weight: 700; pointer-events: auto; backdrop-filter: blur(5px); box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .money-text { color: #00f2fe; margin-top: 8px; font-family: 'Orbitron', sans-serif; font-size: 24px; }
+        .money-tick { animation: tickPop 0.3s ease-out; }
+        @keyframes tickPop { 0% { transform: scale(1); color: #00f2fe; } 50% { transform: scale(1.1); color: #fff; } 100% { transform: scale(1); color: #00f2fe; } }
+
+        #eggs-container { display: none; position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); gap: 40px; pointer-events: auto; flex-wrap: wrap; justify-content: center; width: 90%; max-width: 800px; }
+        .egg-item { cursor: pointer; transition: 0.1s; }
+        .egg-item:active { transform: scale(0.9); }
+        .egg-label { background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: 900; font-size: 24px; padding: 15px 40px; border-radius: 30px; box-shadow: 0 10px 25px rgba(0,242,254,0.4); }
+
+        #chase-ui { display: none; position: absolute; top: 15%; left: 50%; transform: translateX(-50%); text-align: center; z-index: 15; width: 100%; pointer-events: none; }
+        #chase-msg { font-size: clamp(24px, 4vw, 40px); font-weight: 900; color: #ff0844; text-shadow: 0 5px 15px rgba(0,0,0,1); margin-bottom: 15px; animation: pulse 0.5s infinite alternate; }
+        #chase-distance { font-size: clamp(30px, 5vw, 50px); font-weight: 900; color: #fff; text-shadow: 0 5px 15px rgba(0,0,0,1); }
+        @keyframes pulse { to { transform: scale(1.05); } }
+
+        .float-text { position: absolute; font-size: 35px; font-weight: 900; color: #fff; -webkit-text-stroke: 1px #000; text-shadow: 0 0 10px #00f2fe; z-index: 150; animation: floatUp 0.6s ease-out forwards; pointer-events: none; }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100px) scale(1.2); opacity: 0; } }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; pointer-events: auto; backdrop-filter: blur(10px); }
+        .modal-content { background: #0a0f1e; border: 1px solid rgba(0,242,254,0.3); border-radius: 20px; width: 90%; max-width: 800px; padding: 25px; max-height: 85%; display: flex; flex-direction: column; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; font-size: 24px; color: #00f2fe; font-weight: 900; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; }
+        .close-btn { background: rgba(255,255,255,0.1); border: none; color: #fff; font-size: 20px; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; transition: 0.2s; }
+        .close-btn:hover { background: #ff0844; }
+        
+        .inv-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .inv-tab { flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .inv-tab.active { background: #00f2fe; color: #000; border-color: #00f2fe; }
+
+        .scroll-area { overflow-x: auto; overflow-y: auto; display: flex; gap: 15px; padding-bottom: 15px; flex-wrap: wrap; }
+        .item-card { flex: 1 1 180px; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; text-align: center; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 10px; }
+        .item-card h4 { font-size: 18px; color: #fff; }
+        .item-card .price { font-family: 'Orbitron'; font-size: 18px; color: #00f2fe; font-weight: bold; }
+        .item-card button { padding: 10px; border-radius: 8px; border: none; font-weight: bold; font-size: 14px; background: #00f2fe; color: #000; cursor: pointer; margin-top: auto; transition: 0.2s; }
+        .item-card button:hover:not(:disabled) { background: #fff; }
+        .item-card button:disabled { background: #333; color: #777; cursor: not-allowed; }
+        
+        .inv-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; overflow-y: auto; padding-right: 5px; }
+        .inv-item { aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(255,255,255,0.05); border-radius: 15px; border: 2px solid rgba(255,255,255,0.1); padding: 10px; text-align: center; position: relative; }
+        
+        .inv-item.pet-card, .inv-item.egg-card { border-width: 3px; }
+        .inv-item.equipped { border-color: #fff !important; box-shadow: 0 0 20px #fff; } 
+        .inv-item button { margin-top: auto; padding: 6px 12px; border-radius: 6px; border: none; background: #00f2fe; color: #000; font-weight: bold; cursor: pointer; font-size: 13px; z-index: 2;}
+        .inv-item button.unequip { background: #ff0844; color: #fff; }
+        
+        .upgrade-btn { width: 100%; padding: 20px; font-size: 22px; font-weight: 900; border-radius: 15px; border: none; background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; cursor: pointer; box-shadow: 0 0 20px rgba(0,242,254,0.4); margin-top: 10px; }
+        .upgrade-btn.active { background: linear-gradient(135deg, #ff0844, #ffb199); color: #fff; animation: pulse 1s infinite alternate; }
+    </style>
+</head>
+<body>
+
+    <!-- 오디오 소스 리스트 -->
+    <audio id="snd-bg" src="background.mp3" loop preload="auto"></audio>
+    <audio id="snd-click" src="click.wav" preload="auto"></audio>
+    <audio id="snd-runclick" src="runclick.wav" preload="auto"></audio>
+    <audio id="snd-eggsteal" src="eggsteal.mp3" preload="auto"></audio>
+    <audio id="snd-eggopen" src="eggopen.wav" preload="auto"></audio>
+    <audio id="snd-complete" src="complete.mp3" preload="auto"></audio>
+    
+    <audio id="snd-ocean" src="ocean.mp3" preload="auto"></audio>
+    <audio id="snd-crack" src="crack.mp3" preload="auto"></audio>
+    <audio id="snd-monster" src="monster.mp3" preload="auto"></audio>
+
+    <!-- 스테이지별 보스 추격 오디오 -->
+    <audio id="snd-boss-0" src="shark.mp3" preload="auto"></audio>
+    <audio id="snd-boss-1" src="tiger.mp3" preload="auto"></audio>
+    <audio id="snd-boss-2" src="dinosaur.mp3" preload="auto"></audio>
+    <audio id="snd-boss-3" src="sky.mp3" preload="auto"></audio>
+    <audio id="snd-boss-4" src="pinktiger.mp3" preload="auto"></audio>
+    <audio id="snd-boss-5" src="alien.mp3" preload="auto"></audio>
+
+    <div style="display:none;">
+        <img src="intro.png" alt="preload">
+        <img src="main.png" alt="preload"><img src="run.png" alt="preload"><img src="stage1.png" alt="preload">
+        <img src="stage2.png" alt="preload"><img src="stage3.png" alt="preload"><img src="stage4.png" alt="preload">
+        <img src="stage5.png" alt="preload"><img src="stage6.png" alt="preload">
+    </div>
+
+    <div id="orientation-warning">📱 화면을 가로로 돌려주세요!</div>
+
+    <!-- 프롤로그 컷신 컨테이너 -->
+    <div id="intro-screen">
+        <div id="intro-image"></div>
+        <button id="intro-start-btn" onclick="playPrologue()">프롤로그 시청하기 (클릭)</button>
+    </div>
+
+    <div id="game-container">
+        <div id="bg-layer"></div>
+        <div class="overlay" id="main-overlay"></div>
+        <div class="title" id="main-title">Click to Steal EGG</div>
+
+        <button id="online-users-btn" onclick="playClickSound(); checkOnlineUsers();">🟢 온라인 유저 확인</button>
+        <button id="lobby-return-btn" onclick="playClickSound(); returnToLobby();">🏠 로비로 돌아가기</button>
+
+        <div id="auth-container">
+            <h2 style="color:#fff; font-size: 32px; font-weight:900;">로그인 및 회원가입</h2>
+            <input type="text" id="username" placeholder="계정 이름">
+            <input type="password" id="password" placeholder="비밀번호">
+            <div class="auth-btn-group">
+                <button class="btn-primary" onclick="playClickSound(); login();">로그인</button>
+                <button class="btn-secondary" onclick="playClickSound(); signup();">회원가입</button>
+            </div>
+        </div>
+
+        <div id="start-run-btn-wrapper">
+            <h2 id="welcome-msg" style="color:#00f2fe; font-size: 24px; font-weight: 700;"></h2>
+            <button class="start-run-btn" onclick="playClickSound(); openMapSelection();">🏃 알 훔치러 가기</button>
+            <button onclick="playClickSound(); logout();" style="padding: 10px 25px; font-size: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: #fff; cursor: pointer;">로그아웃</button>
+        </div>
+
+        <div id="map-panel">
+            <div class="map-panel-header">
+                <h3 style="color:#00f2fe; font-size:22px;">🗺️ 작전 구역 선택</h3>
+                <button class="map-close-btn" onclick="playClickSound(); closeMapSelection();">✕</button>
+            </div>
+            <button class="map-btn" onclick="playClickSound(); startRunningPhase(0);">🌊 Lv.1 바다 (500m)</button>
+            <button class="map-btn" onclick="playClickSound(); startRunningPhase(1);">⛰️ Lv.2 산 (5,000m)</button>
+            <button class="map-btn" onclick="playClickSound(); startRunningPhase(2);">🌋 Lv.3 화산 (40,000m)</button>
+            <button class="map-btn" onclick="playClickSound(); startRunningPhase(3);">☁️ Lv.4 하늘 (400,000m)</button>
+            <button class="map-btn" onclick="playClickSound(); startRunningPhase(4);">🌸 Lv.5 벚꽃 (2,000,000m)</button>
+            <button class="map-btn" style="background: linear-gradient(145deg, #9b59b6, #8e44ad); color:#fff; border-color:#d2b4de;" onclick="playClickSound(); startRunningPhase(5);">🌌 Lv.6 우주 (12,500,000m)</button>
+        </div>
+
+        <div id="running-overlay" onclick="handleRunClick(event)"></div>
+
+        <div id="ingame-ui">
+            <div class="sidebar">
+                <div class="sq-btn" onclick="playClickSound(); openModal('inv-modal'); renderInventory();"><span>🎒</span>가방</div>
+                <div class="sq-btn" onclick="playClickSound(); openModal('shop-modal'); renderShop();"><span>🛒</span>상점</div>
+                <div class="sq-btn" onclick="playClickSound(); openModal('upgrade-modal'); renderUpgrade();"><span>⚡</span>강화</div>
+            </div>
+
+            <div id="eggs-container">
+                <div class="egg-item" onclick="playClickSound(); stealEgg();"><div class="egg-label">훔치기</div></div>
+                <div class="egg-item" onclick="playClickSound(); stealEgg();"><div class="egg-label">훔치기</div></div>
+                <div class="egg-item" onclick="playClickSound(); stealEgg();"><div class="egg-label">훔치기</div></div>
+                <div class="egg-item" onclick="playClickSound(); stealEgg();"><div class="egg-label">훔치기</div></div>
+            </div>
+
+            <div id="chase-ui">
+                <div id="chase-msg">알 주인으로부터 도망치세요!</div>
+                <div id="chase-distance">🦈부터 거리: 0m</div>
+            </div>
+
+            <div class="status-box">
+                <div id="clicks-display">기본 파워: 1</div>
+                <div id="money-display" class="money-text">자금: 0원</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달창들 -->
+    <div id="online-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header"><span>🟢 접속 중인 유저</span><button class="close-btn" onclick="playClickSound(); closeModal('online-modal')">✕</button></div>
+            <div id="online-list" style="color: #fff; font-size: 18px; line-height: 1.8; text-align: center; max-height: 300px; overflow-y: auto;">(로딩 중...)</div>
+        </div>
+    </div>
+
+    <div id="inv-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><span>🎒 내 가방</span><button class="close-btn" onclick="playClickSound(); closeModal('inv-modal')">✕</button></div>
+            <div class="inv-tabs">
+                <button class="inv-tab active" onclick="playClickSound(); setInvTab('all', this)">전체</button>
+                <button class="inv-tab" onclick="playClickSound(); setInvTab('item', this)">아이템</button>
+                <button class="inv-tab" onclick="playClickSound(); setInvTab('egg', this)">알</button>
+                <button class="inv-tab" onclick="playClickSound(); setInvTab('pet', this)">동물</button>
+            </div>
+            <div class="inv-list" id="inventory-list"></div>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><span>🛒 점프패드 상점</span><button class="close-btn" onclick="playClickSound(); closeModal('shop-modal')">✕</button></div>
+            <div class="scroll-area" id="shop-list"></div>
+        </div>
+    </div>
+
+    <div id="upgrade-modal" class="modal">
+        <div class="modal-content" style="height:auto;">
+            <div class="modal-header"><span>⚡ 클릭  강화실</span><button class="close-btn" onclick="playClickSound(); closeModal('upgrade-modal')">✕</button></div>
+            <div style="text-align: center; padding: 20px;">
+                <div id="modal-power-display" style="font-size: 40px; font-weight: 900; color: #00f2fe; margin-bottom: 20px; text-shadow: 0 0 15px rgba(0,242,254,0.5);">현재 기본 파워: 1</div>
+                <p style="color:#ccc; font-size:16px; margin-bottom:20px; line-height: 1.5;">
+                    아래 버튼을 켜두면<br><b>0.3초마다 기본 클릭 거리가 1씩 상승</b>합니다!
+                </p>
+                <button id="upgrade-auto-btn" class="upgrade-btn" onclick="playClickSound(); toggleUpgradeAuto();">연타 파워 자동 강화 시작</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let gameState = { clickPower: 1, money: 10000, inventory: [], equipped: '', pets: [], equippedPets: [], isFirstLogin: false };
+        let phase = 'LOBBY'; 
+        let currentStageIndex = 0;
+        
+        let playerProgress = 0;
+        let bossProgress = 0;
+        let chaseTimer = null;
+        let targetEntryClicks = 0; 
+        let targetEscapeClicks = 0; 
+        let upgradeActive = false;
+        let clientVisualTimer = null;
+        let currentInvTab = 'all';
+        let serverTickInterval = null;
+
+        const SHOP_ITEMS = [
+            { name: '기본 점핑패드', price: 0, mult: 1 },
+            { name: '골드 점프패드', price: 100000, mult: 1.5 },
+            { name: '다이아 점프패드', price: 1000000, mult: 2.5 },
+            { name: '무지개 점프패드', price: 20000000, mult: 4 },
+            { name: '다크 점프패드', price: 400000000, mult: 7 },
+            { name: '공허 점프패드', price: 10000000000, mult: 15 },
+            { name: '천상 점프패드', price: 250000000000, mult: 30 }
+        ];
+
+        const STAGES = [
+            { name: 'Lv.1 바다', entryClicks: 500, escapeClicks: 500, bg: 'stage1.png', boss: '🦈', bossSpeed: 20, headStart: 50 }, 
+            { name: 'Lv.2 산', entryClicks: 5000, escapeClicks: 5000, bg: 'stage2.png', boss: '🐅', bossSpeed: 250, headStart: 300 },
+            { name: 'Lv.3 화산', entryClicks: 40000, escapeClicks: 40000, bg: 'stage3.png', boss: '🦖', bossSpeed: 2500, headStart: 2000 },
+            { name: 'Lv.4 하늘', entryClicks: 400000, escapeClicks: 400000, bg: 'stage4.png', boss: '🪽', bossSpeed: 25000, headStart: 10000 },
+            { name: 'Lv.5 벚꽃', entryClicks: 2000000, escapeClicks: 4000000, bg: 'stage5.png', boss: '🌸🐅', bossSpeed: 280000, headStart: 100000 },
+            { name: 'Lv.6 우주', entryClicks: 12500000, escapeClicks: 25000000, bg: 'stage6.png', boss: '👽', bossSpeed: 1800000, headStart: 500000 }
+        ];
+
+        const EGG_COLORS = { '바다알': '#2ecc71', '산알': '#3498db', '용암알': '#f1c40f', '하늘알': '#e74c3c', '벚꽃알': '#ff9ff3', '우주알': '#9b59b6' };
+
+        function playClickSound() {
+            const snd = document.getElementById('snd-click');
+            if(snd) { snd.currentTime = 0; snd.play().catch(e => {}); }
+        }
+
+        function playRunClickSound() {
+            const snd = document.getElementById('snd-runclick');
+            if(snd) { snd.currentTime = 0; snd.play().catch(e => {}); }
+        }
+
+        function stopAudio(id) {
+            const el = document.getElementById(id);
+            if (el) { el.pause(); el.currentTime = 0; }
+        }
+
+        window.onload = async () => {
+            const res = await fetch('/api/userdata');
+            const data = await res.json();
+            if (data.success) {
+                gameState = data.user;
+
+                if (gameState.isFirstLogin) {
+                    document.getElementById('auth-container').style.display = 'none';
+                    document.getElementById('intro-screen').style.display = 'flex';
+                } else {
+                    returnToLobby();
+                    startServerTick();
+                }
+            }
+        };
+
+        function playPrologue() {
+            document.getElementById('intro-start-btn').style.display = 'none';
+            const img = document.getElementById('intro-image');
+            
+            const oceanSnd = document.getElementById('snd-ocean');
+            oceanSnd.currentTime = 0; oceanSnd.play().catch(e=>{});
+            img.style.backgroundPosition = '0 0%';
+            img.style.opacity = '1';
+
+            setTimeout(() => { img.style.opacity = '0'; }, 3000);
+
+            setTimeout(() => {
+                stopAudio('snd-ocean');
+                const crackSnd = document.getElementById('snd-crack');
+                crackSnd.currentTime = 0; crackSnd.play().catch(e=>{});
+                img.style.backgroundPosition = '0 50%';
+                img.style.opacity = '1';
+            }, 4000);
+
+            setTimeout(() => { img.style.opacity = '0'; }, 7000);
+
+            setTimeout(() => {
+                stopAudio('snd-crack');
+                const monsterSnd = document.getElementById('snd-monster');
+                monsterSnd.currentTime = 0; monsterSnd.play().catch(e=>{});
+                img.style.backgroundPosition = '0 100%';
+                img.style.opacity = '1';
+            }, 8000);
+
+            setTimeout(() => { img.style.opacity = '0'; }, 11000);
+
+            setTimeout(async () => {
+                stopAudio('snd-monster');
+                document.getElementById('intro-screen').style.display = 'none';
+                await fetch('/api/finish_intro', { method: 'POST' }); 
+                returnToLobby();
+                startServerTick();
+            }, 12500);
+        }
+
+        function startServerTick() {
+            if(serverTickInterval) clearInterval(serverTickInterval);
+            serverTickInterval = setInterval(async () => {
+                if (phase !== 'LOGIN') {
+                    const tickRes = await fetch('/api/tick', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ isAutoUpgrading: upgradeActive })
+                    });
+                    const tickData = await tickRes.json();
+                    
+                    if (tickData.success) {
+                        const prevMoney = gameState.money;
+                        gameState.money = tickData.money;
+                        gameState.clickPower = tickData.clickPower;
+                        updateUI();
+                        if (gameState.money > prevMoney) {
+                            const moneyEl = document.getElementById('money-display');
+                            moneyEl.classList.remove('money-tick');
+                            void moneyEl.offsetWidth; 
+                            moneyEl.classList.add('money-tick');
+                        }
+                    }
+                }
+            }, 1000);
+        }
+
+        async function signup() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const res = await fetch('/api/signup', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username: u, password: p}) });
+            const data = await res.json();
+            alert(data.message);
+        }
+
+        async function login() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const res = await fetch('/api/login', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username: u, password: p}) });
+            const data = await res.json();
+            if(data.success) location.reload();
+            else alert(data.message);
+        }
+
+        async function logout() { await fetch('/api/logout', { method: 'POST' }); location.reload(); }
+
+        async function checkOnlineUsers() {
+            openModal('online-modal');
+            const listEl = document.getElementById('online-list');
+            listEl.innerHTML = "조회 중...";
+            
+            const res = await fetch('/api/online');
+            const data = await res.json();
+            if(data.success) {
+                if(data.users.length === 0) listEl.innerHTML = "접속 중인 유저가 없습니다.";
+                else listEl.innerHTML = data.users.map(u => `<div>${u === gameState.username ? u + ' 🟢 (나)' : u + ' 🟢'}</div>`).join('');
+            } else listEl.innerHTML = "목록을 불러오지 못했습니다.";
+        }
+
+        function returnToLobby() {
+            phase = 'LOBBY';
+            clearInterval(chaseTimer);
+
+            const bgm = document.getElementById('snd-bg');
+            bgm.play().catch(e => {});
+
+            const bgLayer = document.getElementById('bg-layer');
+            bgLayer.style.backgroundImage = "url('main.png')";
+            bgLayer.style.transform = "scale(1)";
+            
+            document.getElementById('main-overlay').style.display = 'block';
+            document.getElementById('main-title').style.display = 'block';
+            
+            const titleEl = document.getElementById('main-title');
+            titleEl.innerText = "Click to Steal EGG";
+            titleEl.style.background = "linear-gradient(90deg, #00f2fe, #4facfe, #00f2fe)";
+            titleEl.style.webkitBackgroundClip = "text";
+            titleEl.style.webkitTextFillColor = "transparent";
+
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('start-run-btn-wrapper').style.display = 'flex';
+            document.getElementById('start-run-btn-wrapper').style.transform = 'translate(-50%, -50%)';
+            document.getElementById('map-panel').style.right = '-450px';
+            
+            document.getElementById('ingame-ui').style.display = 'block';
+            document.getElementById('eggs-container').style.display = 'none';
+            document.getElementById('chase-ui').style.display = 'none';
+            document.getElementById('running-overlay').style.display = 'none';
+            
+            document.getElementById('online-users-btn').style.display = 'block';
+            document.getElementById('lobby-return-btn').style.display = 'none';
+            
+            document.getElementById('welcome-msg').innerText = `로그인된 계정: ${gameState.username}`;
+        }
+
+        function openMapSelection() {
+            document.getElementById('start-run-btn-wrapper').style.transform = 'translate(-90%, -50%)';
+            document.getElementById('map-panel').style.right = '50px';
+        }
+        function closeMapSelection() {
+            document.getElementById('map-panel').style.right = '-450px';
+            document.getElementById('start-run-btn-wrapper').style.transform = 'translate(-50%, -50%)';
+        }
+
+        function startRunningPhase(stageIndex) {
+            currentStageIndex = stageIndex;
+            targetEntryClicks = STAGES[stageIndex].entryClicks; 
+            phase = 'MAP_RUN';
+            playerProgress = 0;
+
+            document.getElementById('start-run-btn-wrapper').style.display = 'none';
+            document.getElementById('map-panel').style.right = '-450px';
+            document.getElementById('main-overlay').style.display = 'none'; 
+            document.getElementById('online-users-btn').style.display = 'none';
+            document.getElementById('lobby-return-btn').style.display = 'block'; 
+            
+            const bgLayer = document.getElementById('bg-layer');
+            bgLayer.style.backgroundImage = "url('run.png')";
+            bgLayer.style.transform = "scale(1)";
+
+            document.getElementById('running-overlay').style.display = 'block';
+            
+            const titleEl = document.getElementById('main-title');
+            titleEl.style.background = "none";
+            titleEl.style.webkitTextFillColor = "#ff0844"; 
+            titleEl.innerText = `목표 맵으로 가는 중! (0 / ${targetEntryClicks}m)`;
+        }
+
+        function enterMainGamePhase() {
+            phase = 'MAP_IDLE';
+            const stage = STAGES[currentStageIndex];
+            document.getElementById('bg-layer').style.backgroundImage = `url('${stage.bg}')`;
+            document.getElementById('bg-layer').style.transform = "scale(1)";
+            document.getElementById('running-overlay').style.display = 'none';
+            document.getElementById('main-title').style.display = 'none'; 
+            document.getElementById('eggs-container').style.display = 'flex';
+        }
+
+        function stealEgg() {
+            if (phase !== 'MAP_IDLE') return;
+            
+            document.getElementById('snd-bg').pause();
+
+            const eggStealSnd = document.getElementById('snd-eggsteal');
+            eggStealSnd.currentTime = 0;
+            eggStealSnd.play().catch(e => {});
+
+            setTimeout(() => {
+                const bossSnd = document.getElementById(`snd-boss-${currentStageIndex}`);
+                if (bossSnd) {
+                    bossSnd.currentTime = 0;
+                    bossSnd.play().catch(e => {});
+                }
+            }, 800);
+
+            phase = 'CHASE_RUN';
+            document.getElementById('eggs-container').style.display = 'none';
+            document.getElementById('bg-layer').style.backgroundImage = "url('run.png')";
+            document.getElementById('bg-layer').style.transform = "scale(1)";
+            document.getElementById('running-overlay').style.display = 'block';
+            document.getElementById('chase-ui').style.display = 'block';
+            
+            const stage = STAGES[currentStageIndex];
+            playerProgress = 0; bossProgress = -stage.headStart; targetEscapeClicks = stage.escapeClicks; 
+            document.getElementById('chase-msg').innerText = `알 주인으로부터 도망치세요!`;
+            updateChaseUI();
+
+            chaseTimer = setInterval(() => {
+                bossProgress += (stage.bossSpeed / 10);
+                if (playerProgress - bossProgress <= 0) {
+                    clearInterval(chaseTimer);
+                    stopAudio(`snd-boss-${currentStageIndex}`);
+                    alert(`앗! ${stage.boss}에게 잡혔습니다...\n알을 뺏기고 로비로 도망쳤습니다.`);
+                    returnToLobby();
+                } else updateChaseUI();
+            }, 100);
+        }
+
+        function updateChaseUI() {
+            const stage = STAGES[currentStageIndex];
+            let distance = Math.floor(playerProgress - bossProgress);
+            if (distance < 0) distance = 0;
+            document.getElementById('chase-distance').innerText = `${stage.boss}부터 거리: ${distance}m`;
+            const zoom = (playerProgress / targetEscapeClicks) * 0.3;
+            document.getElementById('bg-layer').style.transform = `scale(${1 + zoom})`;
+        }
+
+        async function handleRunClick(e) {
+            if (phase !== 'MAP_RUN' && phase !== 'CHASE_RUN') return;
+            
+            playRunClickSound();
+
+            let power = gameState.clickPower * getMultiplier();
+            playerProgress += power;
+            let x = (e && e.clientX) ? e.clientX - 20 : window.innerWidth / 2;
+            let y = (e && e.clientY) ? e.clientY - 40 : window.innerHeight / 2;
+            createFloatText(x, y, `+${power}`);
+
+            if (phase === 'MAP_RUN') {
+                document.getElementById('main-title').innerText = `목표 맵으로 가는 중! (${Math.floor(playerProgress)} / ${targetEntryClicks}m)`;
+                const zoom = (playerProgress / targetEntryClicks) * 0.3;
+                document.getElementById('bg-layer').style.transform = `scale(${1 + zoom})`;
+                if (playerProgress >= targetEntryClicks) enterMainGamePhase();
+            } 
+            else if (phase === 'CHASE_RUN') {
+                updateChaseUI();
+                if (playerProgress >= targetEscapeClicks) {
+                    clearInterval(chaseTimer);
+                    stopAudio(`snd-boss-${currentStageIndex}`);
+                    phase = 'WAITING_SERVER'; 
+                    
+                    // 알 훔치기 성공 시 complete.mp3 재생
+                    const completeSnd = document.getElementById('snd-complete');
+                    if(completeSnd) { completeSnd.currentTime = 0; completeSnd.play().catch(e => {}); }
+
+                    const res = await fetch('/api/escape', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ stageIndex: currentStageIndex })
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        gameState.inventory = data.inventory;
+                        alert(`탈출 성공!!! 🎉 [${data.eggName}] 획득!`);
+                        returnToLobby();
+                    }
+                }
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') { e.preventDefault(); if(document.getElementById('running-overlay').style.display === 'block') handleRunClick(null); }
+        });
+
+        function updateUI() {
+            document.getElementById('clicks-display').innerText = `1회 돌파 거리: ${gameState.clickPower * getMultiplier()}m`;
+            document.getElementById('money-display').innerText = `코인: ${Math.floor(gameState.money).toLocaleString()}원`;
+            if (document.getElementById('upgrade-modal').style.display === 'flex') renderUpgrade();
+        }
+
+        function getMultiplier() {
+            const item = SHOP_ITEMS.find(i => i.name === gameState.equipped);
+            return item ? item.mult : 1;
+        }
+
+        function createFloatText(x, y, text) {
+            const el = document.createElement('div'); el.className = 'float-text'; el.innerText = text;
+            el.style.left = `${x}px`; el.style.top = `${y}px`; document.body.appendChild(el);
+            setTimeout(() => el.remove(), 500); 
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function renderUpgrade() { document.getElementById('modal-power-display').innerText = `현재 기본 파워: ${gameState.clickPower}`; }
+        
+        function toggleUpgradeAuto() {
+            const btn = document.getElementById('upgrade-auto-btn');
+            if (!upgradeActive) {
+                upgradeActive = true;
+                btn.innerText = "⚡ 거리 강화 가동 중... (다시 눌러 중지)";
+                btn.classList.add('active');
+                
+                clientVisualTimer = setInterval(() => {
+                    gameState.clickPower += 1;
+                    renderUpgrade();
+                }, 333);
+            } else {
+                upgradeActive = false;
+                clearInterval(clientVisualTimer);
+                btn.innerText = "연타 거리 자동 강화 시작";
+                btn.classList.remove('active');
+            }
+        }
+
+        function renderShop() {
+            const list = document.getElementById('shop-list');
+            list.innerHTML = '';
+            SHOP_ITEMS.forEach(item => {
+                const isOwned = gameState.inventory.includes(item.name);
+                list.innerHTML += `
+                    <div class="item-card">
+                        <h4>${item.name}</h4>
+                        <p style="color:#aaa; font-size:14px; margin-top:5px;">거리 배수: x${item.mult}</p>
+                        <p class="price">${item.price === 0 ? '기본' : item.price.toLocaleString() + '원'}</p>
+                        <button ${isOwned ? 'disabled' : ''} onclick="playClickSound(); buyItem('${item.name}')">
+                            ${isOwned ? '구매 완료' : '구매하기'}
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        async function buyItem(itemName) {
+            const res = await fetch('/api/buy', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ itemName })
+            });
+            const data = await res.json();
+            if (data.success) {
+                gameState.money = data.money; gameState.inventory = data.inventory;
+                updateUI(); renderShop();
+            } else alert(data.message);
+        }
+
+        function setInvTab(tab, btnElement) {
+            currentInvTab = tab;
+            const tabs = document.querySelectorAll('.inv-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            btnElement.classList.add('active');
+            renderInventory();
+        }
+
+        function renderInventory() {
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = '';
+            
+            if (currentInvTab === 'all' || currentInvTab === 'item') {
+                gameState.inventory.forEach(name => {
+                    const padInfo = SHOP_ITEMS.find(i => i.name === name);
+                    if (padInfo) {
+                        const isEquip = gameState.equipped === name;
+                        list.innerHTML += `
+                            <div class="inv-item ${isEquip ? 'equipped' : ''}">
+                                <h4 style="font-size:16px;">${name}</h4>
+                                <p style="color:#aaa; font-size:12px; margin-top:5px;">배수: x${padInfo.mult}</p>
+                                <button ${isEquip ? 'disabled' : ''} onclick="playClickSound(); equipItemConfirm('${name}')">${isEquip ? '장착 중' : '장착하기'}</button>
+                            </div>
+                        `;
+                    }
+                });
+            }
+
+            if (currentInvTab === 'all' || currentInvTab === 'egg') {
+                gameState.inventory.forEach((name) => {
+                    if (EGG_COLORS[name]) {
+                        const eggColor = EGG_COLORS[name];
+                        list.innerHTML += `
+                            <div class="inv-item egg-card" style="border-color: ${eggColor}; background: ${eggColor}22; cursor:pointer;" onclick="playClickSound(); hatchEggConfirm('${name}')">
+                                <h4 style="color:${eggColor}; font-size:18px;">${name}</h4>
+                                <span style="font-size:40px; margin-top:5px;">🥚</span>
+                                <p style="color:#ccc; font-size:11px; margin-top:5px;">클릭하여 부화</p>
+                            </div>
+                        `;
+                    }
+                });
+            }
+
+            if (currentInvTab === 'all' || currentInvTab === 'pet') {
+                let sortedPets = [...gameState.pets].sort((a, b) => {
+                    let aEquip = gameState.equippedPets.includes(a.id);
+                    let bEquip = gameState.equippedPets.includes(b.id);
+                    if (aEquip && !bEquip) return -1;
+                    if (!aEquip && bEquip) return 1;
+                    return b.mps - a.mps; 
+                });
+
+                sortedPets.forEach(pet => {
+                    const isEquip = gameState.equippedPets.includes(pet.id);
+                    const petColor = EGG_COLORS[pet.eggSource] || '#ffffff';
+                    
+                    list.innerHTML += `
+                        <div class="inv-item pet-card ${isEquip ? 'equipped' : ''}" style="border-color: ${petColor}; background: ${petColor}15;">
+                            <span style="font-size:35px;">${pet.emoji}</span>
+                            <p style="color:#aaa; font-size:11px; margin-top:5px;">${pet.eggSource.replace('알','')} 출신</p>
+                            <p style="color:${petColor}; font-size:12px; font-weight:bold;">+${pet.mps.toLocaleString()}원/초</p>
+                            <button class="${isEquip ? 'unequip' : ''}" onclick="playClickSound(); toggleEquipPet(${pet.id})">
+                                ${isEquip ? '장착 해제' : '장착하기'}
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        async function equipItemConfirm(name) {
+            if(confirm(name + "을(를) 장착하시겠습니까?")) {
+                gameState.equipped = name;
+                await fetch('/api/equip', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ equipped: gameState.equipped, equippedPets: gameState.equippedPets })
+                });
+                renderInventory(); updateUI();
+            }
+        }
+
+        async function hatchEggConfirm(eggName) {
+            if(confirm(`[${eggName}]을(를) 여시겠습니까?`)) {
+                // 알 여는 순간 eggopen.wav 재생
+                const eggOpenSnd = document.getElementById('snd-eggopen');
+                if(eggOpenSnd) { eggOpenSnd.currentTime = 0; eggOpenSnd.play().catch(e => {}); }
+
+                const res = await fetch('/api/hatch', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ eggName })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    gameState.inventory = data.inventory;
+                    gameState.pets = data.pets;
+                    renderInventory();
+                    alert(`축하합니다!\n알에서 [ ${data.newPet.emoji} ] 이(가) 태어났습니다!\n(초당 자동 자금 +${data.newPet.mps.toLocaleString()}원)`);
+                } else {
+                    alert(data.message);
+                }
+            }
+        }
+
+        async function toggleEquipPet(petId) {
+            const index = gameState.equippedPets.indexOf(petId);
+            if (index > -1) {
+                gameState.equippedPets.splice(index, 1);
+            } else {
+                if (gameState.equippedPets.length >= 7) { alert("동물은 최대 7마리까지만 장착할 수 있습니다."); return; }
+                if(confirm("이 동물을 장착하시겠습니까? (초당 수익 발생)")) { gameState.equippedPets.push(petId); } else return;
+            }
+            
+            await fetch('/api/equip', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ equipped: gameState.equipped, equippedPets: gameState.equippedPets })
+            });
+            renderInventory();
+        }
+    </script>
+</body>
+</html>
