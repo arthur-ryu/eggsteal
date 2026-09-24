@@ -8,18 +8,19 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Render 환경 변수(MONGO_URI)를 우선 사용하고, 없으면 로컬 DB를 바라보게 안전하게 설정
 const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017';
 const dbName = 'egg_game_db';
 let db;
 
 const SHOP_ITEMS = {
     '기본 점핑패드': { price: 0, mult: 1 },
-    '골드 점프패드': { price: 100000, mult: 1.5 },
-    '다이아 점프패드': { price: 1000000, mult: 2.5 },
-    '무지개 점프패드': { price: 20000000, mult: 4 },
-    '다크 점프패드': { price: 400000000, mult: 7 },
-    '공허 점프패드': { price: 10000000000, mult: 15 },
-    '천상 점프패드': { price: 250000000000, mult: 30 }
+    '골드 점프패드': { price: 150000, mult: 1.5 },
+    '다이아 점프패드': { price: 2000000, mult: 2.5 },
+    '무지개 점프패드': { price: 50000000, mult: 4 },
+    '다크 점프패드': { price: 1000000000, mult: 7 },
+    '공허 점프패드': { price: 35000000000, mult: 15 },
+    '천상 점프패드': { price: 1000000000000, mult: 30 }
 };
 
 const STAGES = [
@@ -39,7 +40,10 @@ const PET_POOLS = {
     '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁️', '🌙', '👼']
 };
 
-const BASE_MPS = { '바다알': 10, '산알': 50, '용암알': 400, '하늘알': 3000, '벚꽃알': 25000, '우주알': 250000, '천사알': 2500000, '악마알': 25000000 };
+const BASE_MPS = { 
+    '바다알': 10, '산알': 50, '용암알': 400, '하늘알': 3000, 
+    '벚꽃알': 25000, '우주알': 250000, '천사알': 2500000, '악마알': 25000000 
+};
 
 const onlineUsers = new Map();
 
