@@ -69,7 +69,6 @@
         .map-btn { padding: 12px 20px; font-size: 16px; font-weight: 700; text-align: left; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: pointer; transition: 0.2s; }
         .map-btn:hover { background: rgba(0, 242, 254, 0.2); border-color: #00f2fe; transform: translateX(-5px); }
 
-        /* 상단 컨트롤 버튼들 겹침 방지 배치 */
         #fullscreen-btn { position: absolute; top: 15px; left: 15px; z-index: 50; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(0,0,0,0.7); color: #ffeb3b; border: 1px solid rgba(255,235,59,0.5); border-radius: 10px; cursor: pointer; }
         #online-users-btn { position: absolute; top: 15px; right: 15px; z-index: 50; display: none; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(0,0,0,0.7); color: #00f2fe; border: 1px solid rgba(0,242,254,0.5); border-radius: 10px; cursor: pointer; }
         #lobby-return-btn { position: absolute; top: 55px; right: 15px; z-index: 50; display: none; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(0,0,0,0.7); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 10px; cursor: pointer; }
@@ -186,7 +185,7 @@
 
         <div id="map-panel">
             <div class="map-panel-header">
-                <h3 style="color:#00f2fe; font-size:20px;">🗺️ 작전 구역 선택</h3>
+                <h3 style="color:#00f2fe; font-size:20px;">🗺️ 맵 선택</h3>
                 <button class="map-close-btn" onclick="closeMapSelection();">✕</button>
             </div>
             <button class="map-btn" onclick="startRunningPhase(0);">🌊 Lv.1 바다 (500m)</button>
@@ -285,12 +284,12 @@
 
         const SHOP_ITEMS = [
             { name: '기본 점핑패드', price: 0, mult: 1 },
-            { name: '골드 점프패드', price: 100000, mult: 1.5 },
-            { name: '다이아 점프패드', price: 1000000, mult: 2.5 },
-            { name: '무지개 점프패드', price: 20000000, mult: 4 },
-            { name: '다크 점프패드', price: 400000000, mult: 7 },
-            { name: '공허 점프패드', price: 10000000000, mult: 15 },
-            { name: '천상 점프패드', price: 250000000000, mult: 30 }
+            { name: '골드 점프패드', price: 150000, mult: 1.5 },
+            { name: '다이아 점프패드', price: 2000000, mult: 2.5 },
+            { name: '무지개 점프패드', price: 50000000, mult: 4 },
+            { name: '다크 점프패드', price: 1000000000, mult: 7 },
+            { name: '공허 점프패드', price: 35000000000, mult: 15 },
+            { name: '천상 점프패드', price: 1000000000000, mult: 30 }
         ];
 
         const STAGES = [
@@ -304,7 +303,7 @@
             { name: 'Lv.8 악마', entryClicks: 150000000, escapeClicks: 300000000, bg: 'devi.png', boss: '😈', bossSpeed: 60000000, headStart: 10000000 }
         ];
 
-        const EGG_COLORS = { '바다알': '#2ecc71', '산알': '#3498db', '용암알': '#f1c40f', '하늘알': '#e74c3c', '벚꽃알': '#ff9ff3', '우주알': '#9b59b6', '천사알': '#f1c40f', '악마알': '#e74c3c' };
+        const EGG_COLORS = { '바다알': '#2ecc71', '산알': '#3498db', '용암알': '#f1c40f', '하늘알': '#e74c3c', '벚꽃알': '#ff9ff3', '우주알': '#9b59b6', '천사알': '#dcdde1', '악마알': '#353b48' };
 
         // 오디오 풀링 시스템 (모바일 씹힘 방지)
         const audioPools = {};
@@ -469,6 +468,7 @@
 
         function returnToLobby() {
             playClickSound();
+            stopUpgradeAuto(); // 로비로 돌아갈 때 자동 강화 중지
             phase = 'LOBBY';
             clearInterval(chaseTimer);
 
@@ -517,6 +517,7 @@
 
         function startRunningPhase(stageIndex) {
             playClickSound();
+            stopUpgradeAuto(); // 맵 출발 시 자동 강화 중지
             currentStageIndex = stageIndex;
             targetEntryClicks = STAGES[stageIndex].entryClicks; 
             phase = 'MAP_RUN';
@@ -659,8 +660,16 @@
             setTimeout(() => el.remove(), 500); 
         }
 
-        function openModal(id) { playClickSound(); document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { playClickSound(); document.getElementById(id).style.display = 'none'; }
+        function openModal(id) { 
+            playClickSound(); 
+            document.getElementById(id).style.display = 'flex'; 
+        }
+        
+        function closeModal(id) { 
+            playClickSound(); 
+            document.getElementById(id).style.display = 'none'; 
+            stopUpgradeAuto(); // 모달 창을 닫을 때 자동 강화 중지
+        }
 
         function renderUpgrade() { document.getElementById('modal-power-display').innerText = `현재 기본 파워: ${gameState.clickPower}`; }
         
@@ -677,10 +686,19 @@
                     renderUpgrade();
                 }, 333);
             } else {
+                stopUpgradeAuto();
+            }
+        }
+
+        function stopUpgradeAuto() {
+            if (upgradeActive) {
                 upgradeActive = false;
                 clearInterval(clientVisualTimer);
-                btn.innerText = "연타 파워 자동 강화 시작";
-                btn.classList.remove('active');
+                const btn = document.getElementById('upgrade-auto-btn');
+                if (btn) {
+                    btn.innerText = "연타 파워 자동 강화 시작";
+                    btn.classList.remove('active');
+                }
             }
         }
 
