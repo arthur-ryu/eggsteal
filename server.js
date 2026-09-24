@@ -8,7 +8,6 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Render 환경 변수(MONGO_URI)를 우선 사용하고, 없으면 로컬 DB를 바라보게 안전하게 설정
 const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017';
 const dbName = 'egg_game_db';
 let db;
@@ -24,9 +23,14 @@ const SHOP_ITEMS = {
 };
 
 const STAGES = [
-    { eggName: '바다알' }, { eggName: '산알' }, { eggName: '용암알' },
-    { eggName: '하늘알' }, { eggName: '벚꽃알' }, { eggName: '우주알' },
-    { eggName: '천사알' }, { eggName: '악마알' }
+    { name: 'Lv.1 바다', escapeClicks: 500, eggName: '바다알' }, 
+    { name: 'Lv.2 산', escapeClicks: 5000, eggName: '산알' },
+    { name: 'Lv.3 화산', escapeClicks: 40000, eggName: '용암알' },
+    { name: 'Lv.4 하늘', escapeClicks: 400000, eggName: '하늘알' },
+    { name: 'Lv.5 벚꽃', escapeClicks: 4000000, eggName: '벚꽃알' },
+    { name: 'Lv.6 우주', escapeClicks: 25000000, eggName: '우주알' },
+    { name: 'Lv.7 천사', escapeClicks: 60000000, eggName: '천사알' },
+    { name: 'Lv.8 악마', escapeClicks: 300000000, eggName: '악마알' }
 ];
 
 const PET_POOLS = {
@@ -41,8 +45,14 @@ const PET_POOLS = {
 };
 
 const BASE_MPS = { 
-    '바다알': 10, '산알': 50, '용암알': 400, '하늘알': 3000, 
-    '벚꽃알': 25000, '우주알': 250000, '천사알': 2500000, '악마알': 25000000 
+    '바다알': 10, 
+    '산알': 50, 
+    '용암알': 400, 
+    '하늘알': 3000, 
+    '벚꽃알': 25000, 
+    '우주알': 250000, 
+    '천사알': 2500000, 
+    '악마알': 25000000 
 };
 
 const onlineUsers = new Map();
@@ -209,26 +219,30 @@ app.post('/api/buy', async (req, res) => {
     }
 });
 
-// 콘솔 조작 방지 검증 추가
+// 💡 /api/escape 실제 탈출 거리 서버 검증 로직 추가 (치트 방지)
 app.post('/api/escape', async (req, res) => {
     const username = req.cookies.auth_user;
-    const { stageIndex } = req.body;
+    const { stageIndex, currentClicks } = req.body;
     
     if (stageIndex === undefined || stageIndex < 0 || stageIndex >= STAGES.length) {
         return res.json({ success: false, message: '비정상적인 접근입니다.' });
     }
 
-    const user = await db.collection('users').findOne({ username });
-    if (!user) return res.json({ success: false });
-
     const stage = STAGES[stageIndex];
+    // 클라이언트가 보낸 탈출 진행도가 해당 스테이지의 요구 탈출 거리(escapeClicks) 이상인지 엄격 검증
+    if (currentClicks === undefined || currentClicks < stage.escapeClicks) {
+        return res.json({ success: false, message: '아직 탈출 지점에 도달하지 못했습니다!' });
+    }
+
+    const user = await db.collection('users').findOne({ username });
+    if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
+
     user.inventory.push(stage.eggName);
 
     await db.collection('users').updateOne({ username }, { $set: { inventory: user.inventory } });
     res.json({ success: true, eggName: stage.eggName, inventory: user.inventory });
 });
 
-// 펫 ID 위변조 방지 검증 추가
 app.post('/api/equip', async (req, res) => {
     const username = req.cookies.auth_user;
     const { equipped, equippedPets } = req.body;
