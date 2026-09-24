@@ -129,19 +129,12 @@
 </head>
 <body>
 
-    <!-- 오디오 소스 리스트 -->
+    <!-- 오디오 소스 리스트 (오디오 풀링 시스템 적용으로 씹힘 방지) -->
     <audio id="snd-bg" src="background.mp3" loop preload="auto"></audio>
-    <audio id="snd-click" src="click.wav" preload="auto"></audio>
-    <audio id="snd-runclick" src="runclick.wav" preload="auto"></audio>
-    <audio id="snd-eggsteal" src="eggsteal.mp3" preload="auto"></audio>
-    <audio id="snd-eggopen" src="eggopen.wav" preload="auto"></audio>
-    <audio id="snd-complete" src="complete.mp3" preload="auto"></audio>
-    
     <audio id="snd-ocean" src="ocean.mp3" preload="auto"></audio>
     <audio id="snd-crack" src="crack.mp3" preload="auto"></audio>
     <audio id="snd-monster" src="monster.mp3" preload="auto"></audio>
 
-    <!-- 스테이지별 보스 추격 오디오 -->
     <audio id="snd-boss-0" src="shark.mp3" preload="auto"></audio>
     <audio id="snd-boss-1" src="tiger.mp3" preload="auto"></audio>
     <audio id="snd-boss-2" src="dinosaur.mp3" preload="auto"></audio>
@@ -307,6 +300,37 @@
 
         const EGG_COLORS = { '바다알': '#2ecc71', '산알': '#3498db', '용암알': '#f1c40f', '하늘알': '#e74c3c', '벚꽃알': '#ff9ff3', '우주알': '#9b59b6' };
 
+        // 모바일 오디오 씹힘 방지 오디오 풀링 시스템 (click.wav, runclick.wav, eggsteal.mp3, eggopen.wav, complete.mp3)
+        const audioPools = {};
+        function createAudioPool(id, src, poolSize = 5) {
+            audioPools[id] = [];
+            for (let i = 0; i < poolSize; i++) {
+                const audio = new Audio(src);
+                audio.preload = 'auto';
+                audioPools[id].push(audio);
+            }
+            audioPools[id].currentIndex = 0;
+        }
+
+        function playPooledSound(id) {
+            const pool = audioPools[id];
+            if (!pool) return;
+            const audio = pool[pool.currentIndex];
+            audio.currentTime = 0;
+            audio.play().catch(e => {});
+            pool.currentIndex = (pool.currentIndex + 1) % pool.length;
+        }
+
+        // 페이지 로드 시 오디오 풀 생성
+        createAudioPool('click', 'click.wav', 8);
+        createAudioPool('runclick', 'runclick.wav', 10);
+        createAudioPool('eggsteal', 'eggsteal.mp3', 3);
+        createAudioPool('eggopen', 'eggopen.wav', 3);
+        createAudioPool('complete', 'complete.mp3', 3);
+
+        function playClickSound() { playPooledSound('click'); }
+        function playRunClickSound() { playPooledSound('runclick'); }
+
         function toggleFullScreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(err => {
@@ -317,16 +341,6 @@
                     document.exitFullscreen();
                 }
             }
-        }
-
-        function playClickSound() {
-            const snd = document.getElementById('snd-click');
-            if(snd) { snd.currentTime = 0; snd.play().catch(e => {}); }
-        }
-
-        function playRunClickSound() {
-            const snd = document.getElementById('snd-runclick');
-            if(snd) { snd.currentTime = 0; snd.play().catch(e => {}); }
         }
 
         function stopAudio(id) {
@@ -531,10 +545,7 @@
             if (phase !== 'MAP_IDLE') return;
             
             document.getElementById('snd-bg').pause();
-
-            const eggStealSnd = document.getElementById('snd-eggsteal');
-            eggStealSnd.currentTime = 0;
-            eggStealSnd.play().catch(e => {});
+            playPooledSound('eggsteal');
 
             setTimeout(() => {
                 const bossSnd = document.getElementById(`snd-boss-${currentStageIndex}`);
@@ -600,8 +611,7 @@
                     stopAudio(`snd-boss-${currentStageIndex}`);
                     phase = 'WAITING_SERVER'; 
                     
-                    const completeSnd = document.getElementById('snd-complete');
-                    if(completeSnd) { completeSnd.currentTime = 0; completeSnd.play().catch(e => {}); }
+                    playPooledSound('complete');
 
                     const res = await fetch('/api/escape', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -624,7 +634,7 @@
 
         function updateUI() {
             document.getElementById('clicks-display').innerText = `1회 돌파 거리: ${gameState.clickPower * getMultiplier()}m`;
-            document.getElementById('money-display').innerText = `코인: ${Math.floor(gameState.money).toLocaleString()}원`;
+            document.getElementById('money-display').innerText = `자금: ${Math.floor(gameState.money).toLocaleString()}원`;
             if (document.getElementById('upgrade-modal').style.display === 'flex') renderUpgrade();
         }
 
@@ -648,7 +658,7 @@
             const btn = document.getElementById('upgrade-auto-btn');
             if (!upgradeActive) {
                 upgradeActive = true;
-                btn.innerText = "⚡ 클릭 강화 가동 중... (다시 눌러 중지)";
+                btn.innerText = "⚡ 파워 강화 가동 중... (다시 눌러 중지)";
                 btn.classList.add('active');
                 
                 clientVisualTimer = setInterval(() => {
@@ -658,7 +668,7 @@
             } else {
                 upgradeActive = false;
                 clearInterval(clientVisualTimer);
-                btn.innerText = "연타 거리 자동 강화 시작";
+                btn.innerText = "연타 파워 자동 강화 시작";
                 btn.classList.remove('active');
             }
         }
@@ -776,8 +786,7 @@
 
         async function hatchEggConfirm(eggName) {
             if(confirm(`[${eggName}]을(를) 여시겠습니까?`)) {
-                const eggOpenSnd = document.getElementById('snd-eggopen');
-                if(eggOpenSnd) { eggOpenSnd.currentTime = 0; eggOpenSnd.play().catch(e => {}); }
+                playPooledSound('eggopen');
 
                 const res = await fetch('/api/hatch', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -798,18 +807,25 @@
 
         async function toggleEquipPet(petId) {
             const index = gameState.equippedPets.indexOf(petId);
+            let newEquippedPets = [...gameState.equippedPets];
             if (index > -1) {
-                gameState.equippedPets.splice(index, 1);
+                newEquippedPets.splice(index, 1);
             } else {
-                if (gameState.equippedPets.length >= 7) { alert("동물은 최대 7마리까지만 장착할 수 있습니다."); return; }
-                if(confirm("이 동물을 장착하시겠습니까? (초당 수익 발생)")) { gameState.equippedPets.push(petId); } else return;
+                if (newEquippedPets.length >= 7) { alert("동물은 최대 7마리까지만 장착할 수 있습니다."); return; }
+                if(confirm("이 동물을 장착하시겠습니까? (초당 수익 발생)")) { newEquippedPets.push(petId); } else return;
             }
             
-            await fetch('/api/equip', {
+            const res = await fetch('/api/equip', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ equipped: gameState.equipped, equippedPets: gameState.equippedPets })
+                body: JSON.stringify({ equipped: gameState.equipped, equippedPets: newEquippedPets })
             });
-            renderInventory();
+            const data = await res.json();
+            if(data.success) {
+                gameState.equippedPets = data.equippedPets;
+                renderInventory();
+            } else {
+                alert(data.message);
+            }
         }
     </script>
 </body>
