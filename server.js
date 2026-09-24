@@ -24,7 +24,8 @@ const SHOP_ITEMS = {
 
 const STAGES = [
     { eggName: '바다알' }, { eggName: '산알' }, { eggName: '용암알' },
-    { eggName: '하늘알' }, { eggName: '벚꽃알' }, { eggName: '우주알' }
+    { eggName: '하늘알' }, { eggName: '벚꽃알' }, { eggName: '우주알' },
+    { eggName: '천사알' }, { eggName: '악마알' }
 ];
 
 const PET_POOLS = {
@@ -33,10 +34,12 @@ const PET_POOLS = {
     '용암알': ['🐅', '🐆', '🦬', '🦏', '🐘', '🦣', '🐊', '🦂', '🦇', '🦕', '🐲', '🐉', '🦖'],
     '하늘알': ['🪲', '🐞', '🪰', '🐝', '🦋', '🦤', '🐓', '🦃', '🦚', '🦜', '🐦', '🐤', '🐥', '🐣', '🕊️', '🦢', '🦩', '🦅', '🦉', '🪽'],
     '벚꽃알': ['🐮', '🐷', '🐽', '🐔', '🐕', '🐈', '🦨', '🦥', '🦝', '🐭', '🐹', '🐴', '🦄', '🐶', '🐱', '🐅🌸'],
-    '우주알': ['🐪', '🐫', '🦘', '🦓', '🦒', '🦛', '🦁', '🐯', '🐼', '🐨', '🦍', '🦧', '🐵', '🙈', '🙉', '🙊', '👽']
+    '우주알': ['🐪', '🐫', '🦘', '🦓', '🦒', '🦛', '🦁', '🐯', '🐼', '🐨', '🦍', '🦧', '🐵', '🙈', '🙉', '🙊', '👽'],
+    '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸️', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '😈', '👿'],
+    '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁️', '🌙', '👼']
 };
 
-const BASE_MPS = { '바다알': 10, '산알': 50, '용암알': 400, '하늘알': 3000, '벚꽃알': 25000, '우주알': 250000 };
+const BASE_MPS = { '바다알': 10, '산알': 50, '용암알': 400, '하늘알': 3000, '벚꽃알': 25000, '우주알': 250000, '천사알': 2500000, '악마알': 25000000 };
 
 const onlineUsers = new Map();
 
@@ -127,7 +130,7 @@ app.post('/api/tick', async (req, res) => {
 
     let newMoney = user.money + totalMps;
     let newPower = user.clickPower || 1;
-    if (isAutoUpgrading) newPower += 3; 
+    if (isAutoUpgrading) newPower += 10; 
 
     await db.collection('users').updateOne({ username }, { $set: { money: newMoney, clickPower: newPower } });
     res.json({ success: true, money: newMoney, clickPower: newPower, mps: totalMps });
@@ -202,7 +205,7 @@ app.post('/api/buy', async (req, res) => {
     }
 });
 
-// 콘솔 조작 방지: 오직 정상적인 게임 내 스테이지 인덱스(0~5)만 허용
+// 콘솔 조작 방지 검증 추가
 app.post('/api/escape', async (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex } = req.body;
@@ -221,7 +224,7 @@ app.post('/api/escape', async (req, res) => {
     res.json({ success: true, eggName: stage.eggName, inventory: user.inventory });
 });
 
-// 펫 ID 위변조 방지: 유저가 실제로 보유한 펫 ID만 장착 목록에 포함되도록 검증
+// 펫 ID 위변조 방지 검증 추가
 app.post('/api/equip', async (req, res) => {
     const username = req.cookies.auth_user;
     const { equipped, equippedPets } = req.body;
