@@ -40,7 +40,7 @@ const PET_POOLS = {
     '하늘알': ['🪲', '🐞', '🪰', '🐝', '🦋', '🦤', '🐓', '🦃', '🦚', '🦜', '🐦', '🐤', '🐥', '🐣', '🕊️', '🦢', '🦩', '🦅', '🦉', '🪽'],
     '벚꽃알': ['🐮', '🐷', '🐽', '🐔', '🐕', '🐈', '🦨', '🦥', '🦝', '🐭', '🐹', '🐴', '🦄', '🐶', '🐱', '🐅🌸'],
     '우주알': ['🐪', '🐫', '🦘', '🦓', '🦒', '🦛', '🦁', '🐯', '🐼', '🐨', '🦍', '🦧', '🐵', '🙈', '🙉', '🙊', '👽'],
-    '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸️', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '😈', '👿'],
+    '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸️', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '👿', '😈'],
     '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁️', '🌙', '👼']
 };
 
@@ -54,6 +54,27 @@ const BASE_MPS = {
     '천사알': 2500000, 
     '악마알': 25000000 
 };
+
+// 등급 판정 유틸 함수
+function getPetRarity(eggName, index, totalLength) {
+    if ((eggName === '천사알' || eggName === '악마알') && index === totalLength - 1) {
+        return '디바인';
+    }
+
+    let minRarityIdx = 0;
+    if (eggName === '용암알') minRarityIdx = 1; // 일반 제외 (레어 이상)
+    if (eggName === '하늘알') minRarityIdx = 2; // 레어 이하 제외 (에픽 이상)
+    if (eggName === '벚꽃알') minRarityIdx = 2;
+    if (eggName === '우주알') minRarityIdx = 2;
+    if (eggName === '천사알' || eggName === '악마알') minRarityIdx = 3; // 에픽 이하 제외 (전설 이상)
+
+    const rarities = ['일반', '레어', '에픽', '전설', '신화', '코스믹', '비밀'];
+    const available = rarities.slice(minRarityIdx);
+
+    const ratio = index / Math.max(1, totalLength - 1);
+    const chosenIdx = Math.min(available.length - 1, Math.floor(ratio * available.length));
+    return available[chosenIdx];
+}
 
 const onlineUsers = new Map();
 
@@ -190,13 +211,63 @@ app.post('/api/hatch', async (req, res) => {
 
     const pickedEmoji = pool[randomIndex];
     const baseMps = BASE_MPS[eggName];
-    const mps = Math.floor(baseMps * Math.pow(1.45, randomIndex));
     
-    const newPet = { id: Date.now() + Math.floor(Math.random()*1000), emoji: pickedEmoji, eggSource: eggName, mps: mps };
+    // 💡 무게(Weight) 시스템: 기본 1.0kg ~ 지수형태로 최대 100kg+까지 확률적으로 등장
+    const rawWeight = 1.0 + Math.pow(Math.random(), 3) * 99.0;
+    const weight = Math.round(rawWeight * 10) / 10;
+    const weightBonus = 1 + (weight * 0.01); // 1kg당 +1% 추가 보너스
+
+    const mps = Math.floor(baseMps * Math.pow(1.45, randomIndex) * weightBonus);
+    const rarity = getPetRarity(eggName, randomIndex, pool.length);
+    
+    const newPet = { 
+        id: Date.now() + Math.floor(Math.random()*1000), 
+        emoji: pickedEmoji, 
+        eggSource: eggName, 
+        mps: mps,
+        weight: weight,
+        rarity: rarity
+    };
     user.pets.push(newPet);
 
     await db.collection('users').updateOne({ username }, { $set: { inventory: user.inventory, pets: user.pets } });
     res.json({ success: true, newPet, inventory: user.inventory, pets: user.pets });
+});
+
+// 💡 동물 판매 API (초당 수익의 50% 지급)
+app.post('/api/sell_pet', async (req, res) => {
+    const username = req.cookies.auth_user;
+    const { petId } = req.body;
+    const user = await db.collection('users').findOne({ username });
+    if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
+
+    const petIndex = user.pets.findIndex(p => p.id === petId);
+    if (petIndex === -1) return res.json({ success: false, message: '보유하지 않은 동물입니다.' });
+
+    const targetPet = user.pets[petIndex];
+    const sellPrice = Math.floor(targetPet.mps * 0.5);
+
+    user.pets.splice(petIndex, 1);
+    user.money += sellPrice;
+
+    // 장착 중인 경우 해제
+    let newEquippedPets = (user.equippedPets || []).filter(id => id !== petId);
+
+    await db.collection('users').updateOne({ username }, { 
+        $set: { 
+            pets: user.pets, 
+            money: user.money, 
+            equippedPets: newEquippedPets 
+        } 
+    });
+
+    res.json({ 
+        success: true, 
+        money: user.money, 
+        pets: user.pets, 
+        equippedPets: newEquippedPets, 
+        soldPrice: sellPrice 
+    });
 });
 
 app.post('/api/buy', async (req, res) => {
@@ -219,7 +290,6 @@ app.post('/api/buy', async (req, res) => {
     }
 });
 
-// 💡 /api/escape 실제 탈출 거리 서버 검증 로직 추가 (치트 방지)
 app.post('/api/escape', async (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex, currentClicks } = req.body;
@@ -229,7 +299,6 @@ app.post('/api/escape', async (req, res) => {
     }
 
     const stage = STAGES[stageIndex];
-    // 클라이언트가 보낸 탈출 진행도가 해당 스테이지의 요구 탈출 거리(escapeClicks) 이상인지 엄격 검증
     if (currentClicks === undefined || currentClicks < stage.escapeClicks) {
         return res.json({ success: false, message: '아직 탈출 지점에 도달하지 못했습니다!' });
     }
