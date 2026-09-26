@@ -22,15 +22,16 @@ const SHOP_ITEMS = {
     '천상 점프패드': { price: 1000000000000, mult: 30 }
 };
 
+// 💡 우주, 천사, 악마 스테이지 난이도 대폭 강화
 const STAGES = [
     { name: 'Lv.1 바다', escapeClicks: 500, eggName: '바다알' }, 
     { name: 'Lv.2 산', escapeClicks: 5000, eggName: '산알' },
     { name: 'Lv.3 화산', escapeClicks: 40000, eggName: '용암알' },
     { name: 'Lv.4 하늘', escapeClicks: 400000, eggName: '하늘알' },
     { name: 'Lv.5 벚꽃', escapeClicks: 4000000, eggName: '벚꽃알' },
-    { name: 'Lv.6 우주', escapeClicks: 25000000, eggName: '우주알' },
-    { name: 'Lv.7 천사', escapeClicks: 60000000, eggName: '천사알' },
-    { name: 'Lv.8 악마', escapeClicks: 300000000, eggName: '악마알' }
+    { name: 'Lv.6 우주', escapeClicks: 50000000, eggName: '우주알' },
+    { name: 'Lv.7 천사', escapeClicks: 150000000, eggName: '천사알' },
+    { name: 'Lv.8 악마', escapeClicks: 800000000, eggName: '악마알' }
 ];
 
 const PET_POOLS = {
@@ -55,18 +56,29 @@ const BASE_MPS = {
     '악마알': 25000000 
 };
 
-// 등급 판정 유틸 함수
+// 도감 보상 기준치
+const DEX_REWARDS = {
+    '일반': { power: 2, money: 1000 },
+    '레어': { power: 5, money: 5000 },
+    '에픽': { power: 15, money: 25000 },
+    '전설': { power: 50, money: 150000 },
+    '신화': { power: 200, money: 1500000 },
+    '코스믹': { power: 1000, money: 15000000 },
+    '비밀': { power: 5000, money: 150000000 },
+    '디바인': { power: 25000, money: 1500000000 }
+};
+
 function getPetRarity(eggName, index, totalLength) {
     if ((eggName === '천사알' || eggName === '악마알') && index === totalLength - 1) {
         return '디바인';
     }
 
     let minRarityIdx = 0;
-    if (eggName === '용암알') minRarityIdx = 1; // 일반 제외 (레어 이상)
-    if (eggName === '하늘알') minRarityIdx = 2; // 레어 이하 제외 (에픽 이상)
+    if (eggName === '용암알') minRarityIdx = 1;
+    if (eggName === '하늘알') minRarityIdx = 2;
     if (eggName === '벚꽃알') minRarityIdx = 2;
     if (eggName === '우주알') minRarityIdx = 2;
-    if (eggName === '천사알' || eggName === '악마알') minRarityIdx = 3; // 에픽 이하 제외 (전설 이상)
+    if (eggName === '천사알' || eggName === '악마알') minRarityIdx = 3;
 
     const rarities = ['일반', '레어', '에픽', '전설', '신화', '코스믹', '비밀'];
     const available = rarities.slice(minRarityIdx);
@@ -100,7 +112,7 @@ app.post('/api/signup', async (req, res) => {
 
     const newUser = {
         username, password, clickPower: 1, money: 10000, 
-        inventory: ['기본 점핑패드'], equipped: '기본 점핑패드', pets: [], equippedPets: [],
+        inventory: ['기본 점핑패드'], equipped: '기본 점핑패드', pets: [], equippedPets: [], claimedDex: [],
         isFirstLogin: true 
     };
     await db.collection('users').insertOne(newUser);
@@ -135,6 +147,7 @@ app.get('/api/userdata', async (req, res) => {
         if (!user.clickPower) user.clickPower = 1;
         if (!user.pets) user.pets = [];
         if (!user.equippedPets) user.equippedPets = [];
+        if (!user.claimedDex) user.claimedDex = [];
         res.json({ success: true, user });
     } else res.json({ success: false });
 });
@@ -212,10 +225,10 @@ app.post('/api/hatch', async (req, res) => {
     const pickedEmoji = pool[randomIndex];
     const baseMps = BASE_MPS[eggName];
     
-    // 💡 무게(Weight) 시스템: 기본 1.0kg ~ 지수형태로 최대 100kg+까지 확률적으로 등장
-    const rawWeight = 1.0 + Math.pow(Math.random(), 3) * 99.0;
+    // 💡 무게(Weight) 최대 10,000kg 지수 확률 곡선 적용
+    const rawWeight = 1.0 + Math.pow(Math.random(), 4) * 9999.0;
     const weight = Math.round(rawWeight * 10) / 10;
-    const weightBonus = 1 + (weight * 0.01); // 1kg당 +1% 추가 보너스
+    const weightBonus = 1 + (weight * 0.002); // 무게 스케일에 맞춘 보너스
 
     const mps = Math.floor(baseMps * Math.pow(1.45, randomIndex) * weightBonus);
     const rarity = getPetRarity(eggName, randomIndex, pool.length);
@@ -234,7 +247,52 @@ app.post('/api/hatch', async (req, res) => {
     res.json({ success: true, newPet, inventory: user.inventory, pets: user.pets });
 });
 
-// 💡 동물 판매 API (초당 수익의 50% 지급)
+// 💡 도감 보상 수령 API
+app.post('/api/claim_dex', async (req, res) => {
+    const username = req.cookies.auth_user;
+    const { eggName, emoji } = req.body;
+    const user = await db.collection('users').findOne({ username });
+    if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
+
+    const key = `${eggName}_${emoji}`;
+    const claimedDex = user.claimedDex || [];
+    if (claimedDex.includes(key)) {
+        return res.json({ success: false, message: '이미 보상을 수령한 동물입니다.' });
+    }
+
+    // 실제로 해당 동물을 획득했는지 검증
+    const hasPet = user.pets && user.pets.some(p => p.eggSource === eggName && p.emoji === emoji);
+    if (!hasPet) {
+        return res.json({ success: false, message: '아직 획득하지 못한 동물입니다.' });
+    }
+
+    const pool = PET_POOLS[eggName];
+    const idx = pool.indexOf(emoji);
+    const rarity = getPetRarity(eggName, idx, pool.length);
+    const reward = DEX_REWARDS[rarity] || { power: 2, money: 1000 };
+
+    claimedDex.push(key);
+    const newPower = (user.clickPower || 1) + reward.power;
+    const newMoney = (user.money || 0) + reward.money;
+
+    await db.collection('users').updateOne({ username }, {
+        $set: {
+            claimedDex: claimedDex,
+            clickPower: newPower,
+            money: newMoney
+        }
+    });
+
+    res.json({
+        success: true,
+        rewardPower: reward.power,
+        rewardMoney: reward.money,
+        clickPower: newPower,
+        money: newMoney,
+        claimedDex: claimedDex
+    });
+});
+
 app.post('/api/sell_pet', async (req, res) => {
     const username = req.cookies.auth_user;
     const { petId } = req.body;
@@ -250,7 +308,6 @@ app.post('/api/sell_pet', async (req, res) => {
     user.pets.splice(petIndex, 1);
     user.money += sellPrice;
 
-    // 장착 중인 경우 해제
     let newEquippedPets = (user.equippedPets || []).filter(id => id !== petId);
 
     await db.collection('users').updateOne({ username }, { 
