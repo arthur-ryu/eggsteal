@@ -7,7 +7,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Noto+Sans+KR:wght@400;700;900&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans KR', sans-serif; user-select: none; }
-        /* 💡 화사하고 밝은 라이트 네이비/메탈릭 톤으로 변경 */
         body { background-color: #1a2238; overflow: hidden; color: #222f3e; width: 100vw; height: 100vh; position: fixed; }
 
         #orientation-warning {
@@ -47,7 +46,6 @@
         }
         @keyframes shine { to { background-position: 200% center; } }
 
-        /* 밝고 정갈한 글래스모피즘 인증 박스 */
         #auth-container {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             background: rgba(255, 255, 255, 0.92); padding: 30px 40px; border-radius: 24px;
@@ -85,7 +83,6 @@
         .sq-btn:hover { transform: scale(1.05); }
         .sq-btn span { font-size: 22px; margin-bottom: 2px; }
 
-        /* 💡 개별 컬러링: 도감(하늘색), 가방(빨간색), 상점(연두색), 강화(노란색) */
         .btn-dex { border: 2px solid #00d2d3; color: #00a8ff; }
         .btn-inv { border: 2px solid #ff4757; color: #ff4757; }
         .btn-shop { border: 2px solid #2ed573; color: #20bf6b; }
@@ -109,7 +106,6 @@
         .float-text { position: absolute; font-size: 32px; font-weight: 900; color: #0984e3; -webkit-text-stroke: 1.5px #fff; text-shadow: 0 0 10px rgba(9,132,227,0.5); z-index: 150; animation: floatUp 0.6s ease-out forwards; pointer-events: none; }
         @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-90px) scale(1.2); opacity: 0; } }
 
-        /* 밝고 세련된 모달 창 */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 100; justify-content: center; align-items: center; pointer-events: auto; backdrop-filter: blur(8px); padding: 10px; }
         .modal-content { background: #ffffff; border: 2px solid #dfe6e9; border-radius: 20px; width: 90%; max-width: 750px; padding: 20px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 15px 40px rgba(0,0,0,0.25); color: #2d3436; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; font-size: 22px; color: #0984e3; font-weight: 900; margin-bottom: 12px; border-bottom: 2px solid #f1f2f6; padding-bottom: 12px; }
@@ -141,7 +137,6 @@
         .upgrade-btn { width: 100%; padding: 16px; font-size: 20px; font-weight: 900; border-radius: 14px; border: none; background: linear-gradient(135deg, #ffa502, #ff7f50); color: #fff; cursor: pointer; box-shadow: 0 0 15px rgba(255, 165, 2, 0.4); margin-top: 10px; }
         .upgrade-btn.active { background: linear-gradient(135deg, #ff4757, #ff6b81); color: #fff; animation: pulse 1s infinite alternate; }
 
-        /* 도감 스타일 */
         .dex-layout { display: flex; height: 60vh; gap: 15px; }
         .dex-sidebar { width: 160px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; border-right: 2px solid #f1f2f6; padding-right: 10px; }
         .dex-map-btn { padding: 12px; background: #f8f9fa; border: 1px solid #dfe6e9; border-radius: 10px; color: #2d3436; font-weight: bold; cursor: pointer; text-align: left; font-size: 14px; }
@@ -150,17 +145,42 @@
         .dex-card { aspect-ratio: 1; background: #f8f9fa; border: 2px solid #dfe6e9; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: 0.2s; position: relative; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
         .dex-card.unlocked { border-width: 2px; }
         .dex-card span { font-size: 30px; }
+
+        /* 💡 비밀 & 디바인 전용 스타일 (무지개 애니메이션 & 흑백 테마) */
+        .rarity-divine {
+            border: 3px solid transparent !important;
+            background: linear-gradient(#fff, #fff) padding-box, linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3, #ff0000) border-box !important;
+            background-size: 200% auto !important;
+            animation: rainbowFlow 2s linear infinite !important;
+        }
+        .text-divine {
+            background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00bb00, #0000ff, #9400d3, #ff0000);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 900 !important;
+            animation: rainbowFlow 2s linear infinite;
+        }
+        @keyframes rainbowFlow { to { background-position: 200% center; } }
+
+        .rarity-secret {
+            border: 3px solid #2d3436 !important;
+            background: radial-gradient(circle, #f5f6fa 20%, #2d3436 120%) !important;
+        }
+        .text-secret {
+            color: #2d3436 !important;
+            font-weight: 900 !important;
+            text-shadow: 0 0 1px #fff;
+        }
     </style>
 </head>
 <body>
 
-    <!-- 오디오 소스 리스트 -->
     <audio id="snd-bg" src="background.mp3" loop preload="auto"></audio>
     <audio id="snd-ocean" src="ocean.mp3" preload="auto"></audio>
     <audio id="snd-crack" src="crack.mp3" preload="auto"></audio>
     <audio id="snd-monster" src="monster.mp3" preload="auto"></audio>
 
-    <!-- 스테이지별 보스 추격 오디오 -->
     <audio id="snd-boss-0" src="shark.mp3" preload="auto"></audio>
     <audio id="snd-boss-1" src="tiger.mp3" preload="auto"></audio>
     <audio id="snd-boss-2" src="dinosaur.mp3" preload="auto"></audio>
@@ -227,7 +247,6 @@
         <div id="running-overlay" onclick="handleRunClick(event)"></div>
 
         <div id="ingame-ui">
-            <!-- 💡 사이드바 4개 버튼 개별 색상 클래스 적용 -->
             <div class="sidebar">
                 <div class="sq-btn btn-dex" onclick="openModal('dex-modal'); renderDex(0);"><span>📖</span>도감</div>
                 <div class="sq-btn btn-inv" onclick="openModal('inv-modal'); renderInventory();"><span>🎒</span>가방</div>
@@ -254,7 +273,6 @@
         </div>
     </div>
 
-    <!-- 모달창들 -->
     <div id="online-modal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header"><span>🟢 접속 중인 유저</span><button class="close-btn" onclick="closeModal('online-modal')">✕</button></div>
@@ -330,7 +348,6 @@
             { name: '천상 점프패드', price: 1000000000000, mult: 30 }
         ];
 
-        // 💡 우주, 천사, 악마 스테이지 보스 속도 및 탈출 거리 상향 적용
         const STAGES = [
             { name: 'Lv.1 바다', entryClicks: 500, escapeClicks: 500, bg: 'stage1.png', boss: '🦈', bossSpeed: 20, headStart: 50, eggName: '바다알' }, 
             { name: 'Lv.2 산', entryClicks: 5000, escapeClicks: 5000, bg: 'stage2.png', boss: '🐅', bossSpeed: 250, headStart: 300, eggName: '산알' },
@@ -344,15 +361,16 @@
 
         const EGG_COLORS = { '바다알': '#2ecc71', '산알': '#3498db', '용암알': '#f1c40f', '하늘알': '#e74c3c', '벚꽃알': '#ff9ff3', '우주알': '#9b59b6', '천사알': '#b2bec3', '악마알': '#2d3436' };
 
+        // 💡 레어: 파란색 / 에픽: 핑크색 / 비밀: 흑백 / 디바인: 무지개
         const RARITY_COLORS = {
             '일반': '#7f8c8d',
-            '레어': '#2ed573',
-            '에픽': '#0984e3',
+            '레어': '#0984e3',
+            '에픽': '#fd79a8',
             '전설': '#ffa502',
             '신화': '#ff4757',
             '코스믹': '#8e44ad',
-            '비밀': '#00d2d3',
-            '디바인': '#ff007f'
+            '비밀': '#2d3436',
+            '디바인': 'rainbow'
         };
 
         const PET_POOLS = {
@@ -783,7 +801,6 @@
             }
         }
 
-        // 💡 도감 보상 수령 기능이 포함된 렌더링
         function renderDex(selectedIndex = 0) {
             const sidebar = document.getElementById('dex-sidebar');
             const content = document.getElementById('dex-content');
@@ -816,18 +833,37 @@
                 const isUnlocked = unlockedMap.has(emoji);
                 const card = document.createElement('div');
                 const rarity = getPetRarity(eggName, idx, pool.length);
-                const rColor = RARITY_COLORS[rarity] || '#0984e3';
                 const dexKey = `${eggName}_${emoji}`;
                 const isClaimed = claimedSet.has(dexKey);
 
-                card.className = `dex-card ${isUnlocked ? 'unlocked' : ''}`;
+                let rarityClass = '';
+                let textClass = '';
+                let borderStyle = '';
+                let bgStyle = '';
+
+                if (rarity === '디바인') {
+                    rarityClass = 'rarity-divine';
+                    textClass = 'text-divine';
+                } else if (rarity === '비밀') {
+                    rarityClass = 'rarity-secret';
+                    textClass = 'text-secret';
+                } else {
+                    const rColor = RARITY_COLORS[rarity] || '#0984e3';
+                    borderStyle = `2px solid ${rColor}`;
+                    bgStyle = `${rColor}15`;
+                }
+
+                card.className = `dex-card ${isUnlocked ? 'unlocked ' + rarityClass : ''}`;
+                if (isUnlocked && borderStyle) {
+                    card.style.border = borderStyle;
+                    card.style.background = bgStyle;
+                }
+
                 if (isUnlocked) {
-                    card.style.borderColor = rColor;
-                    card.style.background = `${rColor}15`;
                     const petData = unlockedMap.get(emoji);
                     card.innerHTML = `
                         <span>${emoji}</span>
-                        <p style="color:${rColor}; font-size:9px; font-weight:bold; margin-top:2px;">${rarity}</p>
+                        <p class="${textClass}" style="${textClass ? '' : 'color:' + RARITY_COLORS[rarity]}; font-size:9px; font-weight:bold; margin-top:2px;">${rarity}</p>
                         <p style="font-size:8px; color:${isClaimed ? '#718093' : '#2ed573'}; font-weight:bold;">${isClaimed ? '완료' : '보상가능'}</p>
                     `;
                     card.onclick = async () => {
@@ -951,13 +987,29 @@
                 sortedPets.forEach(pet => {
                     const isEquip = gameState.equippedPets.includes(pet.id);
                     const rarity = pet.rarity || '일반';
-                    const rColor = RARITY_COLORS[rarity] || '#0984e3';
                     const sellVal = Math.floor(pet.mps * 0.5);
+
+                    let rarityClass = '';
+                    let textClass = '';
+                    let borderStyle = '';
+                    let bgStyle = '';
+
+                    if (rarity === '디바인') {
+                        rarityClass = 'rarity-divine';
+                        textClass = 'text-divine';
+                    } else if (rarity === '비밀') {
+                        rarityClass = 'rarity-secret';
+                        textClass = 'text-secret';
+                    } else {
+                        const rColor = RARITY_COLORS[rarity] || '#0984e3';
+                        borderStyle = `2px solid ${rColor}`;
+                        bgStyle = `${rColor}15`;
+                    }
                     
                     list.innerHTML += `
-                        <div class="inv-item pet-card ${isEquip ? 'equipped' : ''}" style="border-color: ${rColor}; background: ${rColor}15;">
+                        <div class="inv-item pet-card ${isEquip ? 'equipped' : ''} ${rarityClass}" style="${borderStyle ? 'border:' + borderStyle + '; background:' + bgStyle + ';' : ''}">
                             <span style="font-size:32px;">${pet.emoji}</span>
-                            <p style="color:${rColor}; font-size:10px; font-weight:bold; margin-top:1px;">[${rarity}] ${pet.weight ? pet.weight + 'kg' : ''}</p>
+                            <p class="${textClass}" style="${textClass ? '' : 'color:' + RARITY_COLORS[rarity]}; font-size:10px; font-weight:bold; margin-top:1px;">[${rarity}] ${pet.weight ? pet.weight + 'kg' : ''}</p>
                             <p style="color:#2d3436; font-size:11px; font-weight:bold;">+${pet.mps.toLocaleString()}원/초</p>
                             <div class="inv-btn-group">
                                 <button class="${isEquip ? 'unequip' : ''}" onclick="playClickSound(); toggleEquipPet(${pet.id})">
