@@ -12,7 +12,6 @@ const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017';
 const dbName = 'egg_game_db';
 let db;
 
-// 💡 스페셜 알 및 이어달리기 파밍 속도를 감안하여 점프패드 가격 대폭 상향
 const SHOP_ITEMS = {
     '기본 점핑패드': { price: 0, mult: 1 },
     '골드 점프패드': { price: 500000, mult: 1.5 },
@@ -84,42 +83,34 @@ function getPetRarity(eggName, index, totalLength) {
     return available[chosenIdx];
 }
 
-// 💡 멀티플레이 & 스테이지 둥지 (5개) 상태 관리
-// stagesState[stageIndex].slots[slotIndex] = { busyBy: '닉네임', distanceProgress: 누적도망거리 }
 const stagesState = STAGES.map(() => ({
     slots: Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0 }))
 }));
 
-// 유저 위치 추적: username => { stageIndex, lastSeen }
 const userLocations = new Map();
 const onlineUsers = new Map();
 
-// 💡 낮/밤 및 스페셜 알 스폰 타이머 시스템
-// 낮 300초(5분), 밤 10초
 let isNight = false;
-let cycleTimer = 300; 
+let cycleTimer = 300; // 낮 300초(5분)
 let nightCount = 0;
-let nextCosmicTarget = 7 + Math.floor(Math.random() * 4); // 7~10회차 밤
-let nextSecretTarget = 18 + Math.floor(Math.random() * 5); // 18~22회차 밤
+let nextCosmicTarget = 7 + Math.floor(Math.random() * 4);
+let nextSecretTarget = 18 + Math.floor(Math.random() * 5);
 
-let globalSpecialEgg = null; // { type: 'cosmic' | 'secret', stageIndex, slotIndex, eggName }
+let globalSpecialEgg = null;
 let globalNotice = "";
 
 setInterval(() => {
     cycleTimer--;
     if (cycleTimer <= 0) {
         if (!isNight) {
-            // 낮 종료 -> 밤 시작 (10초)
             isNight = true;
-            cycleTimer = 10;
+            cycleTimer = 10; // 밤 10초
             nightCount++;
 
-            // 모든 맵 유저 로비 강제 귀환 처리 (서버단 둥지 전부 해제)
             stagesState.forEach(st => {
                 st.slots.forEach(slot => { slot.busyBy = null; });
             });
 
-            // 스페셜 알 스폰 검사
             if (nightCount >= nextCosmicTarget) {
                 const sIdx = Math.floor(Math.random() * STAGES.length);
                 const slotIdx = Math.floor(Math.random() * 5);
@@ -134,7 +125,6 @@ setInterval(() => {
                 nextSecretTarget = nightCount + 18 + Math.floor(Math.random() * 5);
             }
         } else {
-            // 밤 종료 -> 낮 시작 (300초)
             isNight = false;
             cycleTimer = 300;
         }
@@ -212,7 +202,6 @@ app.post('/api/finish_intro', async (req, res) => {
     res.json({ success: true });
 });
 
-// 💡 맵 동기화 및 실시간 낮/밤/보너스 알 상태 수신 (1초마다 클라이언트가 동기화)
 app.post('/api/sync_stage', (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex } = req.body;
@@ -225,7 +214,6 @@ app.post('/api/sync_stage', (req, res) => {
         userLocations.delete(username);
     }
 
-    // 해당 스테이지에 머무르는 유저 목록 추출
     const usersInStage = [];
     const now = Date.now();
     for (const [u, info] of userLocations.entries()) {
@@ -247,7 +235,6 @@ app.post('/api/sync_stage', (req, res) => {
     });
 });
 
-// 💡 알 훔치기 시작 선언 (점유 및 잔여 거리 수령)
 app.post('/api/start_steal', (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex, slotIndex } = req.body;
@@ -275,7 +262,6 @@ app.post('/api/start_steal', (req, res) => {
     });
 });
 
-// 💡 훔치다 잡혔을 때: 도망친 거리 저장 및 점유 해제
 app.post('/api/fail_steal', (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex, slotIndex, progressMade } = req.body;
@@ -342,7 +328,6 @@ app.post('/api/hatch', async (req, res) => {
     let rarity = '일반';
     let baseMps = 10;
 
-    // 💡 스페셜 알(코스믹알, 시크릿알) 확정 등급 처리
     if (eggName === '코스믹알') {
         const cosmicEmojis = ['🌌', '🪐', '🌠', '☄️', '🛸', '🛰️', '👽'];
         pickedEmoji = cosmicEmojis[Math.floor(Math.random() * cosmicEmojis.length)];
@@ -376,7 +361,6 @@ app.post('/api/hatch', async (req, res) => {
         rarity = getPetRarity(eggName, randomIndex, pool.length);
     }
     
-    // 최대 10,000kg 지수 가중치
     const rawWeight = 1.0 + Math.pow(Math.random(), 4) * 9999.0;
     const weight = Math.round(rawWeight * 10) / 10;
     const weightBonus = 1 + (weight * 0.002);
@@ -482,7 +466,6 @@ app.post('/api/buy', async (req, res) => {
     }
 });
 
-// 💡 탈출 성공 처리 및 슬롯 거리 초기화
 app.post('/api/escape', async (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex, slotIndex, isSpecial, specialType } = req.body;
@@ -498,10 +481,9 @@ app.post('/api/escape', async (req, res) => {
     if (isSpecial) {
         if (specialType === 'cosmic') eggToGive = '코스믹알';
         else if (specialType === 'secret') eggToGive = '시크릿알';
-        globalSpecialEgg = null; // 스페셜 알 획득 시 맵에서 회수
+        globalSpecialEgg = null;
     }
 
-    // 해당 슬롯 초기화
     if (slotIndex >= 0 && slotIndex < 5) {
         stagesState[stageIndex].slots[slotIndex] = { busyBy: null, distanceProgress: 0 };
     }
