@@ -83,7 +83,7 @@ function getPetRarity(eggName, index, totalLength) {
     return available[chosenIdx];
 }
 
-// 💡 5개 슬롯 상태 관리: isGone(누가 훔치면 사라짐)
+// 5개 슬롯 상태 관리
 const stagesState = STAGES.map(() => ({
     slots: Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false }))
 }));
@@ -92,10 +92,10 @@ const userLocations = new Map();
 const onlineUsers = new Map();
 
 let isNight = false;
-let cycleTimer = 300; // 낮 300초(5분)
+let cycleTimer = 300;
 let nightCount = 0;
-let nextCosmicTarget = 7 + Math.floor(Math.random() * 4); // 7~10회차
-let nextSecretTarget = 18 + Math.floor(Math.random() * 5); // 18~22회차
+let nextCosmicTarget = 7 + Math.floor(Math.random() * 4);
+let nextSecretTarget = 18 + Math.floor(Math.random() * 5);
 
 let globalSpecialEgg = null;
 let globalNotice = "";
@@ -103,7 +103,7 @@ let globalNotice = "";
 setInterval(() => {
     cycleTimer--;
 
-    // 💡 밤이 되고 5초 뒤 (남은 시간 5초 시점): 모든 알 리셋 및 5개 훔치기 버튼 부활
+    // 💡 밤 5초 경과 시점: 모든 슬롯의 isGone과 누적 거리 리셋
     if (isNight && cycleTimer === 5) {
         stagesState.forEach(st => {
             st.slots = Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false }));
@@ -113,23 +113,19 @@ setInterval(() => {
 
     if (cycleTimer <= 0) {
         if (!isNight) {
-            // 낮 종료 -> 밤 시작 (10초)
             isNight = true;
             cycleTimer = 10;
             nightCount++;
             globalNotice = "🌙 밤이 찾아왔습니다! 잠시 후 알들이 리셋됩니다.";
 
-            // 플레이어 슬롯 점유 강제 해제
             stagesState.forEach(st => {
                 st.slots.forEach(slot => { slot.busyBy = null; });
             });
         } else {
-            // 밤 종료 -> 낮 시작 (300초)
             isNight = false;
             cycleTimer = 300;
             globalNotice = "";
 
-            // 💡 낮이 될 때 스페셜 알 스폰 체크 및 전체 공지
             if (nightCount >= nextCosmicTarget) {
                 const sIdx = Math.floor(Math.random() * STAGES.length);
                 const slotIdx = Math.floor(Math.random() * 5);
@@ -251,7 +247,7 @@ app.post('/api/sync_stage', (req, res) => {
     });
 });
 
-// 💡 알 훔치기 시작: 누르면 즉시 isGone = true로 설정되어 모든 유저 화면에서 사라짐
+// 💡 훔치기 시작: isGone은 그대로 두고 busyBy만 점유 (훔치는 중 표시)
 app.post('/api/start_steal', (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex, slotIndex } = req.body;
@@ -263,12 +259,14 @@ app.post('/api/start_steal', (req, res) => {
     }
 
     const slot = stagesState[stageIndex].slots[slotIndex];
-    if (slot.isGone || (slot.busyBy && slot.busyBy !== username)) {
+    if (slot.isGone) {
         return res.json({ success: false, message: '이미 다른 유저가 훔쳐간 알입니다!' });
+    }
+    if (slot.busyBy && slot.busyBy !== username) {
+        return res.json({ success: false, message: `${slot.busyBy} 님이 이미 훔치는 중입니다!` });
     }
 
     slot.busyBy = username;
-    slot.isGone = true; // 💡 사라짐 확정
 
     const totalEscape = STAGES[stageIndex].escapeClicks;
     const savedDistance = slot.distanceProgress || 0;
@@ -281,7 +279,7 @@ app.post('/api/start_steal', (req, res) => {
     });
 });
 
-// 훔치다 잡혔을 때: 점유 해제 및 진행 거리 기록 (단, 알은 리셋 전까지 사라진 상태 유지)
+// 잡혔을 때: 점유 해제 및 진행 거리 보존 (아직 성공 못했으므로 isGone은 여전히 false)
 app.post('/api/fail_steal', (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex, slotIndex, progressMade } = req.body;
@@ -486,6 +484,7 @@ app.post('/api/buy', async (req, res) => {
     }
 });
 
+// 💡 훔치기 성공 시에만 해당 알을 완전히 사라지게(isGone = true) 설정
 app.post('/api/escape', async (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex, slotIndex, isSpecial, specialType } = req.body;
@@ -502,6 +501,11 @@ app.post('/api/escape', async (req, res) => {
         if (specialType === 'cosmic') eggToGive = '코스믹알';
         else if (specialType === 'secret') eggToGive = '시크릿알';
         globalSpecialEgg = null;
+    }
+
+    // 💡 탈출 성공 확정: 해당 슬롯은 밤 리셋 전까지 완전히 사라짐
+    if (slotIndex >= 0 && slotIndex < 5) {
+        stagesState[stageIndex].slots[slotIndex] = { busyBy: null, distanceProgress: 0, isGone: true };
     }
 
     user.inventory.push(eggToGive);
