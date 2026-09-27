@@ -46,6 +46,35 @@
         }
         @keyframes shine { to { background-position: 200% center; } }
 
+        /* 💡 상단 글로벌 공지 바 */
+        #global-notice-bar {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; z-index: 60;
+            background: linear-gradient(90deg, #6c5ce7, #a29bfe); color: #fff; text-align: center;
+            padding: 8px 15px; font-weight: 900; font-size: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            animation: slideDown 0.4s ease-out;
+        }
+
+        /* 💡 맵 진입 시 상단에서 슬라이드 다운되는 헤더 */
+        #stage-header {
+            display: none; position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95); padding: 10px 25px; border-radius: 30px;
+            border: 2px solid #dfe6e9; box-shadow: 0 8px 25px rgba(0,0,0,0.2); z-index: 25;
+            align-items: center; gap: 15px; animation: slideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes slideDown { from { transform: translate(-50%, -60px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+        #stage-name-text { font-size: 22px; font-weight: 900; }
+        #stage-user-count { font-size: 14px; font-weight: bold; color: #0984e3; background: #e8f4fd; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 1px solid #74b9ff; }
+        #stage-user-count:hover { background: #0984e3; color: #fff; }
+
+        /* 💡 우측 하단 낮/밤 쿨타임 위젯 */
+        #cycle-status-widget {
+            position: absolute; bottom: 20px; right: 20px; z-index: 45;
+            background: rgba(255, 255, 255, 0.92); padding: 12px 18px; border-radius: 16px;
+            border: 2px solid #dfe6e9; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            font-size: 13px; font-weight: 800; display: flex; flex-direction: column; gap: 4px; pointer-events: none;
+        }
+
         #auth-container {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             background: rgba(255, 255, 255, 0.92); padding: 30px 40px; border-radius: 24px;
@@ -93,10 +122,16 @@
         .money-tick { animation: tickPop 0.3s ease-out; }
         @keyframes tickPop { 0% { transform: scale(1); color: #0984e3; } 50% { transform: scale(1.1); color: #d63031; } 100% { transform: scale(1); color: #0984e3; } }
 
-        #eggs-container { display: none; position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); gap: 25px; pointer-events: auto; flex-wrap: wrap; justify-content: center; width: 90%; max-width: 700px; }
-        .egg-item { cursor: pointer; transition: 0.1s; }
-        .egg-item:active { transform: scale(0.9); }
-        .egg-label { background: linear-gradient(135deg, #0984e3, #74b9ff); color: #fff; font-weight: 900; font-size: 20px; padding: 12px 35px; border-radius: 30px; box-shadow: 0 8px 20px rgba(9, 132, 227, 0.4); }
+        /* 💡 훔치기 5개 둥지 레이아웃 */
+        #eggs-container { display: none; position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); gap: 15px; pointer-events: auto; flex-wrap: wrap; justify-content: center; width: 95%; max-width: 850px; }
+        .egg-item { cursor: pointer; transition: 0.15s; position: relative; }
+        .egg-item:active { transform: scale(0.92); }
+        .egg-label { background: linear-gradient(135deg, #0984e3, #74b9ff); color: #fff; font-weight: 900; font-size: 18px; padding: 12px 28px; border-radius: 30px; box-shadow: 0 8px 20px rgba(9, 132, 227, 0.4); text-align: center; }
+        
+        /* 훔치는 중 / 스페셜 알 스타일 */
+        .egg-item.busy { opacity: 0.45; filter: grayscale(0.5); }
+        .egg-label.cosmic-egg { background: linear-gradient(135deg, #8e44ad, #9b59b6) !important; color: #fff !important; box-shadow: 0 0 20px rgba(155, 89, 182, 0.8) !important; }
+        .egg-label.secret-egg { background: linear-gradient(135deg, #2d3436, #000000) !important; color: #fff !important; border: 2px solid #fff; box-shadow: 0 0 20px rgba(0, 0, 0, 0.9) !important; }
 
         #chase-ui { display: none; position: absolute; top: 12%; left: 50%; transform: translateX(-50%); text-align: center; z-index: 15; width: 100%; pointer-events: none; }
         #chase-msg { font-size: clamp(22px, 3.5vw, 36px); font-weight: 900; color: #ff4757; text-shadow: 0 2px 8px rgba(255,255,255,0.9), 0 4px 14px rgba(0,0,0,0.6); margin-bottom: 10px; animation: pulse 0.5s infinite alternate; }
@@ -146,7 +181,6 @@
         .dex-card.unlocked { border-width: 2px; }
         .dex-card span { font-size: 30px; }
 
-        /* 💡 비밀 & 디바인 전용 스타일 (무지개 애니메이션 & 흑백 테마) */
         .rarity-divine {
             border: 3px solid transparent !important;
             background: linear-gradient(#fff, #fff) padding-box, linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3, #ff0000) border-box !important;
@@ -209,6 +243,20 @@
         <div class="overlay" id="main-overlay"></div>
         <div class="title" id="main-title">Click to Steal EGG</div>
 
+        <div id="global-notice-bar"></div>
+
+        <!-- 💡 맵 진입 헤더 배너 -->
+        <div id="stage-header">
+            <span id="stage-name-text">바다 맵</span>
+            <div id="stage-user-count" onclick="showStageUsers()">👥 인원: 1명</div>
+        </div>
+
+        <!-- 💡 낮/밤 쿨타임 위젯 -->
+        <div id="cycle-status-widget">
+            <div id="day-timer-text" style="color:#d35400;">☀️ 낮 남은 시간: 05:00</div>
+            <div id="night-timer-text" style="color:#2c3e50;">🌙 밤 상태: 낮 진행 중</div>
+        </div>
+
         <button id="fullscreen-btn" onclick="toggleFullScreen()">📺 전체화면</button>
         <button id="online-users-btn" onclick="checkOnlineUsers();">🟢 온라인 유저 확인</button>
         <button id="lobby-return-btn" onclick="returnToLobby();">🏠 로비로 돌아가기</button>
@@ -254,11 +302,13 @@
                 <div class="sq-btn btn-upgrade" onclick="openModal('upgrade-modal'); renderUpgrade();"><span>⚡</span>강화</div>
             </div>
 
+            <!-- 💡 5개의 알 둥지 -->
             <div id="eggs-container">
-                <div class="egg-item" onclick="stealEgg();"><div class="egg-label">훔치기</div></div>
-                <div class="egg-item" onclick="stealEgg();"><div class="egg-label">훔치기</div></div>
-                <div class="egg-item" onclick="stealEgg();"><div class="egg-label">훔치기</div></div>
-                <div class="egg-item" onclick="stealEgg();"><div class="egg-label">훔치기</div></div>
+                <div class="egg-item" id="egg-slot-0" onclick="stealEgg(0);"><div class="egg-label" id="egg-label-0">훔치기</div></div>
+                <div class="egg-item" id="egg-slot-1" onclick="stealEgg(1);"><div class="egg-label" id="egg-label-1">훔치기</div></div>
+                <div class="egg-item" id="egg-slot-2" onclick="stealEgg(2);"><div class="egg-label" id="egg-label-2">훔치기</div></div>
+                <div class="egg-item" id="egg-slot-3" onclick="stealEgg(3);"><div class="egg-label" id="egg-label-3">훔치기</div></div>
+                <div class="egg-item" id="egg-slot-4" onclick="stealEgg(4);"><div class="egg-label" id="egg-label-4">훔치기</div></div>
             </div>
 
             <div id="chase-ui">
@@ -275,7 +325,7 @@
 
     <div id="online-modal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header"><span>🟢 접속 중인 유저</span><button class="close-btn" onclick="closeModal('online-modal')">✕</button></div>
+            <div class="modal-header"><span id="online-modal-title">🟢 접속 중인 유저</span><button class="close-btn" onclick="closeModal('online-modal')">✕</button></div>
             <div id="online-list" style="font-size: 18px; line-height: 1.8; text-align: center; max-height: 300px; overflow-y: auto;">(로딩 중...)</div>
         </div>
     </div>
@@ -327,6 +377,9 @@
         let gameState = { clickPower: 1, money: 10000, inventory: [], equipped: '', pets: [], equippedPets: [], claimedDex: [], isFirstLogin: false };
         let phase = 'LOBBY'; 
         let currentStageIndex = 0;
+        let currentSlotIndex = 0;
+        let isSpecialTarget = false;
+        let specialTargetType = null;
         
         let playerProgress = 0;
         let bossProgress = 0;
@@ -337,15 +390,19 @@
         let clientVisualTimer = null;
         let currentInvTab = 'all';
         let serverTickInterval = null;
+        let stageSyncInterval = null;
+
+        let currentStageUsers = [];
+        let isServerNight = false;
 
         const SHOP_ITEMS = [
             { name: '기본 점핑패드', price: 0, mult: 1 },
-            { name: '골드 점프패드', price: 150000, mult: 1.5 },
-            { name: '다이아 점프패드', price: 2000000, mult: 2.5 },
-            { name: '무지개 점프패드', price: 50000000, mult: 4 },
-            { name: '다크 점프패드', price: 1000000000, mult: 7 },
-            { name: '공허 점프패드', price: 35000000000, mult: 15 },
-            { name: '천상 점프패드', price: 1000000000000, mult: 30 }
+            { name: '골드 점프패드', price: 500000, mult: 1.5 },
+            { name: '다이아 점프패드', price: 10000000, mult: 2.5 },
+            { name: '무지개 점프패드', price: 300000000, mult: 4 },
+            { name: '다크 점프패드', price: 8000000000, mult: 7 },
+            { name: '공허 점프패드', price: 200000000000, mult: 15 },
+            { name: '천상 점프패드', price: 10000000000000, mult: 30 }
         ];
 
         const STAGES = [
@@ -359,9 +416,8 @@
             { name: 'Lv.8 악마', entryClicks: 300000000, escapeClicks: 800000000, bg: 'devi.png', boss: '😈', bossSpeed: 150000000, headStart: 50000, eggName: '악마알' }
         ];
 
-        const EGG_COLORS = { '바다알': '#2ecc71', '산알': '#3498db', '용암알': '#f1c40f', '하늘알': '#e74c3c', '벚꽃알': '#ff9ff3', '우주알': '#9b59b6', '천사알': '#b2bec3', '악마알': '#2d3436' };
+        const EGG_COLORS = { '바다알': '#2ecc71', '산알': '#3498db', '용암알': '#f1c40f', '하늘알': '#e74c3c', '벚꽃알': '#ff9ff3', '우주알': '#9b59b6', '천사알': '#f1c40f', '악마알': '#c0392b' };
 
-        // 💡 레어: 파란색 / 에픽: 핑크색 / 비밀: 흑백 / 디바인: 무지개
         const RARITY_COLORS = {
             '일반': '#7f8c8d',
             '레어': '#0984e3',
@@ -384,12 +440,10 @@
             '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁️', '🌙', '👼']
         };
 
-        const BASE_MPS = { '바다알': 10, '산알': 50, '용암알': 400, '하늘알': 3000, '벚꽃알': 25000, '우주알': 250000, '천사알': 2500000, '악마알': 25000000 };
+        const BASE_MPS = { '바다알': 8, '산알': 40, '용암알': 320, '하늘알': 2400, '벚꽃알': 20000, '우주알': 200000, '천사알': 2000000, '악마알': 20000000 };
 
         function getPetRarity(eggName, index, totalLength) {
-            if ((eggName === '천사알' || eggName === '악마알') && index === totalLength - 1) {
-                return '디바인';
-            }
+            if ((eggName === '천사알' || eggName === '악마알') && index === totalLength - 1) return '디바인';
             let minRarityIdx = 0;
             if (eggName === '용암알') minRarityIdx = 1;
             if (eggName === '하늘알') minRarityIdx = 2;
@@ -460,6 +514,7 @@
                 } else {
                     returnToLobby();
                     startServerTick();
+                    startStageSyncLoop();
                 }
             }
         };
@@ -501,6 +556,7 @@
                 await fetch('/api/finish_intro', { method: 'POST' }); 
                 returnToLobby();
                 startServerTick();
+                startStageSyncLoop();
             }, 12500);
         }
 
@@ -530,6 +586,104 @@
             }, 1000);
         }
 
+        // 💡 1초 주기 실시간 서버 동기화 (낮/밤, 공지, 인원수, 둥지 점유 상태)
+        function startStageSyncLoop() {
+            if(stageSyncInterval) clearInterval(stageSyncInterval);
+            stageSyncInterval = setInterval(async () => {
+                if (phase === 'LOGIN') return;
+
+                const reqStageIndex = (phase === 'MAP_IDLE' || phase === 'CHASE_RUN') ? currentStageIndex : -1;
+                const syncRes = await fetch('/api/sync_stage', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stageIndex: reqStageIndex })
+                });
+                const syncData = await syncRes.json();
+                if (!syncData.success) return;
+
+                isServerNight = syncData.isNight;
+
+                // 낮/밤 위젯 업데이트
+                const dayEl = document.getElementById('day-timer-text');
+                const nightEl = document.getElementById('night-timer-text');
+                if (isServerNight) {
+                    dayEl.innerText = `☀️ 낮 진행: 종료됨`;
+                    nightEl.innerText = `🌙 밤 남은 시간: ${syncData.cycleTimer}초`;
+                    nightEl.style.color = '#e74c3c';
+                    
+                    // 밤일 때 맵에 있으면 즉시 로비로 강제 소환
+                    if (phase === 'MAP_RUN' || phase === 'MAP_IDLE' || phase === 'CHASE_RUN') {
+                        alert("🌙 밤이 찾아왔습니다! 모든 탐험이 중단되고 로비로 귀환합니다.");
+                        returnToLobby();
+                    }
+                } else {
+                    const m = Math.floor(syncData.cycleTimer / 60).toString().padStart(2, '0');
+                    const s = (syncData.cycleTimer % 60).toString().padStart(2, '0');
+                    dayEl.innerText = `☀️ 낮 남은 시간: ${m}:${s}`;
+                    nightEl.innerText = `🌙 밤 상태: 낮 진행 중`;
+                    nightEl.style.color = '#2c3e50';
+                }
+
+                // 전체 공지 바
+                const noticeBar = document.getElementById('global-notice-bar');
+                if (syncData.globalNotice) {
+                    noticeBar.innerText = syncData.globalNotice;
+                    noticeBar.style.display = 'block';
+                } else {
+                    noticeBar.style.display = 'none';
+                }
+
+                // 현재 맵 내 유저 수 및 둥지 상태 동기화
+                if (phase === 'MAP_IDLE') {
+                    currentStageUsers = syncData.usersInStage || [];
+                    document.getElementById('stage-user-count').innerText = `👥 인원: ${currentStageUsers.length}명`;
+
+                    // 5개 둥지 점유 및 스페셜 알 업데이트
+                    for (let i = 0; i < 5; i++) {
+                        const slot = syncData.slots[i];
+                        const slotEl = document.getElementById(`egg-slot-${i}`);
+                        const labelEl = document.getElementById(`egg-label-${i}`);
+
+                        // 특수 알 검사
+                        let isCosmic = false;
+                        let isSecret = false;
+                        if (syncData.globalSpecialEgg && syncData.globalSpecialEgg.stageIndex === currentStageIndex && syncData.globalSpecialEgg.slotIndex === i) {
+                            if (syncData.globalSpecialEgg.type === 'cosmic') isCosmic = true;
+                            if (syncData.globalSpecialEgg.type === 'secret') isSecret = true;
+                        }
+
+                        labelEl.className = 'egg-label';
+                        if (isCosmic) labelEl.classList.add('cosmic-egg');
+                        if (isSecret) labelEl.classList.add('secret-egg');
+
+                        if (slot && slot.busyBy) {
+                            slotEl.classList.add('busy');
+                            labelEl.innerText = `${slot.busyBy} 훔치는 중!`;
+                        } else {
+                            slotEl.classList.remove('busy');
+                            if (isCosmic) labelEl.innerText = `코스믹 알 훔치기`;
+                            else if (isSecret) labelEl.innerText = `시크릿 알 훔치기`;
+                            else {
+                                const distSaved = slot ? slot.distanceProgress : 0;
+                                labelEl.innerText = distSaved > 0 ? `훔치기 (-${distSaved.toLocaleString()}m)` : `훔치기`;
+                            }
+                        }
+                    }
+                }
+            }, 1000);
+        }
+
+        function showStageUsers() {
+            playClickSound();
+            openModal('online-modal');
+            document.getElementById('online-modal-title').innerText = `👥 현재 맵 접속자 목록`;
+            const listEl = document.getElementById('online-list');
+            if (!currentStageUsers || currentStageUsers.length === 0) {
+                listEl.innerHTML = "현재 맵에 유저가 없습니다.";
+            } else {
+                listEl.innerHTML = currentStageUsers.map(u => `<div>${u === gameState.username ? u + ' 🟢 (나)' : u + ' 🟢'}</div>`).join('');
+            }
+        }
+
         async function signup() {
             playClickSound();
             const u = document.getElementById('username').value;
@@ -554,6 +708,7 @@
         async function checkOnlineUsers() {
             playClickSound();
             openModal('online-modal');
+            document.getElementById('online-modal-title').innerText = `🟢 접속 중인 유저`;
             const listEl = document.getElementById('online-list');
             listEl.innerHTML = "조회 중...";
             
@@ -580,6 +735,7 @@
             
             document.getElementById('main-overlay').style.display = 'block';
             document.getElementById('main-title').style.display = 'block';
+            document.getElementById('stage-header').style.display = 'none';
             
             const titleEl = document.getElementById('main-title');
             titleEl.innerText = "Click to Steal EGG";
@@ -605,6 +761,10 @@
 
         function openMapSelection() {
             playClickSound();
+            if (isServerNight) {
+                alert("🌙 밤에는 위험하여 알을 훔치러 갈 수 없습니다! 낮이 될 때까지 기다려주세요.");
+                return;
+            }
             document.getElementById('start-run-btn-wrapper').style.transform = 'translate(-90%, -50%)';
             document.getElementById('map-panel').style.right = '20px';
         }
@@ -616,6 +776,10 @@
 
         function startRunningPhase(stageIndex) {
             playClickSound();
+            if (isServerNight) {
+                alert("🌙 밤에는 알을 훔치러 갈 수 없습니다!");
+                return;
+            }
             stopUpgradeAuto();
             currentStageIndex = stageIndex;
             targetEntryClicks = STAGES[stageIndex].entryClicks; 
@@ -627,6 +791,7 @@
             document.getElementById('main-overlay').style.display = 'none'; 
             document.getElementById('online-users-btn').style.display = 'none';
             document.getElementById('lobby-return-btn').style.display = 'block'; 
+            document.getElementById('stage-header').style.display = 'none';
             
             const bgLayer = document.getElementById('bg-layer');
             bgLayer.style.backgroundImage = "url('run.png')";
@@ -648,11 +813,52 @@
             document.getElementById('running-overlay').style.display = 'none';
             document.getElementById('main-title').style.display = 'none'; 
             document.getElementById('eggs-container').style.display = 'flex';
+
+            // 💡 상단 슬라이드 다운 헤더 표시 및 알 색상 텍스트 적용
+            const header = document.getElementById('stage-header');
+            const nameText = document.getElementById('stage-name-text');
+            nameText.innerText = `${stage.name} 맵`;
+            nameText.style.color = EGG_COLORS[stage.eggName] || '#0984e3';
+            header.style.display = 'flex';
         }
 
-        function stealEgg() {
+        // 💡 5개 둥지 중 선택하여 훔치기
+        async function stealEgg(slotIndex) {
             if (phase !== 'MAP_IDLE') return;
+            if (isServerNight) {
+                alert("🌙 밤에는 알을 훔칠 수 없습니다!");
+                returnToLobby();
+                return;
+            }
+
             playClickSound();
+
+            // 서버 슬롯 점유 및 이전 사람 도망 거리(세이브) 확인
+            const res = await fetch('/api/start_steal', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stageIndex: currentStageIndex, slotIndex })
+            });
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.message);
+                return;
+            }
+
+            currentSlotIndex = slotIndex;
+            targetEscapeClicks = data.targetEscapeClicks;
+
+            // 특수 알인지 판별
+            const labelEl = document.getElementById(`egg-label-${slotIndex}`);
+            isSpecialTarget = false;
+            specialTargetType = null;
+            if (labelEl.classList.contains('cosmic-egg')) {
+                isSpecialTarget = true;
+                specialTargetType = 'cosmic';
+            } else if (labelEl.classList.contains('secret-egg')) {
+                isSpecialTarget = true;
+                specialTargetType = 'secret';
+            }
+
             document.getElementById('snd-bg').pause();
             playPooledSound('eggsteal');
 
@@ -666,22 +872,32 @@
 
             phase = 'CHASE_RUN';
             document.getElementById('eggs-container').style.display = 'none';
+            document.getElementById('stage-header').style.display = 'none';
             document.getElementById('bg-layer').style.backgroundImage = "url('run.png')";
             document.getElementById('bg-layer').style.transform = "scale(1)";
             document.getElementById('running-overlay').style.display = 'block';
             document.getElementById('chase-ui').style.display = 'block';
             
             const stage = STAGES[currentStageIndex];
-            playerProgress = 0; bossProgress = -stage.headStart; targetEscapeClicks = stage.escapeClicks; 
+            playerProgress = 0; 
+            bossProgress = -stage.headStart; 
+
             document.getElementById('chase-msg').innerText = `알 주인으로부터 도망치세요!`;
             updateChaseUI();
 
-            chaseTimer = setInterval(() => {
+            chaseTimer = setInterval(async () => {
                 bossProgress += (stage.bossSpeed / 10);
                 if (playerProgress - bossProgress <= 0) {
                     clearInterval(chaseTimer);
                     stopAudio(`snd-boss-${currentStageIndex}`);
-                    alert(`앗! ${stage.boss}에게 잡혔습니다...\n알을 뺏기고 로비로 도망쳤습니다.`);
+
+                    // 잡혔을 때 도망친 거리 서버에 세이브 & 점유 해제
+                    await fetch('/api/fail_steal', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ stageIndex: currentStageIndex, slotIndex: currentSlotIndex, progressMade: playerProgress })
+                    });
+
+                    alert(`앗! ${stage.boss}에게 잡혔습니다...\n이전까지 도망친 거리는 다음 사람을 위해 남겨두었습니다!`);
                     returnToLobby();
                 } else updateChaseUI();
             }, 100);
@@ -722,7 +938,12 @@
 
                     const res = await fetch('/api/escape', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ stageIndex: currentStageIndex, currentClicks: playerProgress })
+                        body: JSON.stringify({ 
+                            stageIndex: currentStageIndex, 
+                            slotIndex: currentSlotIndex,
+                            isSpecial: isSpecialTarget,
+                            specialType: specialTargetType
+                        })
                     });
                     const data = await res.json();
                     
@@ -818,7 +1039,6 @@
             const currentStage = STAGES[selectedIndex];
             const eggName = currentStage.eggName;
             const pool = PET_POOLS[eggName] || [];
-            const baseMps = BASE_MPS[eggName] || 10;
 
             const unlockedMap = new Map();
             gameState.pets.forEach(p => {
@@ -962,16 +1182,14 @@
 
             if (currentInvTab === 'all' || currentInvTab === 'egg') {
                 gameState.inventory.forEach((name) => {
-                    if (EGG_COLORS[name]) {
-                        const eggColor = EGG_COLORS[name];
-                        list.innerHTML += `
-                            <div class="inv-item egg-card" style="border-color: ${eggColor}; background: ${eggColor}18; cursor:pointer;" onclick="playClickSound(); hatchEggConfirm('${name}')">
-                                <h4 style="color:${eggColor}; font-size:16px;">${name}</h4>
-                                <span style="font-size:36px; margin-top:4px;">🥚</span>
-                                <p style="color:#636e72; font-size:10px; margin-top:4px;">클릭하여 부화</p>
-                            </div>
-                        `;
-                    }
+                    const eggColor = EGG_COLORS[name] || (name === '코스믹알' ? '#8e44ad' : name === '시크릿알' ? '#2d3436' : '#0984e3');
+                    list.innerHTML += `
+                        <div class="inv-item egg-card" style="border-color: ${eggColor}; background: ${eggColor}18; cursor:pointer;" onclick="playClickSound(); hatchEggConfirm('${name}')">
+                            <h4 style="color:${eggColor}; font-size:16px;">${name}</h4>
+                            <span style="font-size:36px; margin-top:4px;">🥚</span>
+                            <p style="color:#636e72; font-size:10px; margin-top:4px;">클릭하여 부화</p>
+                        </div>
+                    `;
                 });
             }
 
