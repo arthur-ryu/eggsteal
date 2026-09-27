@@ -83,8 +83,9 @@ function getPetRarity(eggName, index, totalLength) {
     return available[chosenIdx];
 }
 
+// 💡 5개 슬롯 상태 관리: isGone(누가 훔치면 사라짐)
 const stagesState = STAGES.map(() => ({
-    slots: Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0 }))
+    slots: Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false }))
 }));
 
 const userLocations = new Map();
@@ -93,40 +94,55 @@ const onlineUsers = new Map();
 let isNight = false;
 let cycleTimer = 300; // 낮 300초(5분)
 let nightCount = 0;
-let nextCosmicTarget = 7 + Math.floor(Math.random() * 4);
-let nextSecretTarget = 18 + Math.floor(Math.random() * 5);
+let nextCosmicTarget = 7 + Math.floor(Math.random() * 4); // 7~10회차
+let nextSecretTarget = 18 + Math.floor(Math.random() * 5); // 18~22회차
 
 let globalSpecialEgg = null;
 let globalNotice = "";
 
 setInterval(() => {
     cycleTimer--;
+
+    // 💡 밤이 되고 5초 뒤 (남은 시간 5초 시점): 모든 알 리셋 및 5개 훔치기 버튼 부활
+    if (isNight && cycleTimer === 5) {
+        stagesState.forEach(st => {
+            st.slots = Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false }));
+        });
+        globalNotice = "⚡ 모든 알이 리셋되었습니다! 다음 낮에 새로운 알들이 기다립니다.";
+    }
+
     if (cycleTimer <= 0) {
         if (!isNight) {
+            // 낮 종료 -> 밤 시작 (10초)
             isNight = true;
-            cycleTimer = 10; // 밤 10초
+            cycleTimer = 10;
             nightCount++;
+            globalNotice = "🌙 밤이 찾아왔습니다! 잠시 후 알들이 리셋됩니다.";
 
+            // 플레이어 슬롯 점유 강제 해제
             stagesState.forEach(st => {
                 st.slots.forEach(slot => { slot.busyBy = null; });
             });
+        } else {
+            // 밤 종료 -> 낮 시작 (300초)
+            isNight = false;
+            cycleTimer = 300;
+            globalNotice = "";
 
+            // 💡 낮이 될 때 스페셜 알 스폰 체크 및 전체 공지
             if (nightCount >= nextCosmicTarget) {
                 const sIdx = Math.floor(Math.random() * STAGES.length);
                 const slotIdx = Math.floor(Math.random() * 5);
                 globalSpecialEgg = { type: 'cosmic', stageIndex: sIdx, slotIndex: slotIdx, eggName: '코스믹알' };
-                globalNotice = `🌌 전체 공지: [${STAGES[sIdx].name}]에 코스믹 알이 스폰되었습니다!`;
+                globalNotice = `🌌 [전체 공지] ${STAGES[sIdx].name}에 코스믹 알이 스폰되었습니다!`;
                 nextCosmicTarget = nightCount + 7 + Math.floor(Math.random() * 4);
             } else if (nightCount >= nextSecretTarget) {
                 const sIdx = Math.floor(Math.random() * STAGES.length);
                 const slotIdx = Math.floor(Math.random() * 5);
                 globalSpecialEgg = { type: 'secret', stageIndex: sIdx, slotIndex: slotIdx, eggName: '시크릿알' };
-                globalNotice = `🌑 전체 공지: [${STAGES[sIdx].name}]에 전설의 시크릿 알이 스폰되었습니다!`;
+                globalNotice = `🌑 [전체 공지] ${STAGES[sIdx].name}에 전설의 시크릿 알이 스폰되었습니다!`;
                 nextSecretTarget = nightCount + 18 + Math.floor(Math.random() * 5);
             }
-        } else {
-            isNight = false;
-            cycleTimer = 300;
         }
     }
 }, 1000);
@@ -235,6 +251,7 @@ app.post('/api/sync_stage', (req, res) => {
     });
 });
 
+// 💡 알 훔치기 시작: 누르면 즉시 isGone = true로 설정되어 모든 유저 화면에서 사라짐
 app.post('/api/start_steal', (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex, slotIndex } = req.body;
@@ -246,11 +263,13 @@ app.post('/api/start_steal', (req, res) => {
     }
 
     const slot = stagesState[stageIndex].slots[slotIndex];
-    if (slot.busyBy && slot.busyBy !== username) {
-        return res.json({ success: false, message: `${slot.busyBy} 님이 이미 훔치는 중입니다!` });
+    if (slot.isGone || (slot.busyBy && slot.busyBy !== username)) {
+        return res.json({ success: false, message: '이미 다른 유저가 훔쳐간 알입니다!' });
     }
 
     slot.busyBy = username;
+    slot.isGone = true; // 💡 사라짐 확정
+
     const totalEscape = STAGES[stageIndex].escapeClicks;
     const savedDistance = slot.distanceProgress || 0;
     const remainingClicks = Math.max(50, totalEscape - savedDistance);
@@ -262,6 +281,7 @@ app.post('/api/start_steal', (req, res) => {
     });
 });
 
+// 훔치다 잡혔을 때: 점유 해제 및 진행 거리 기록 (단, 알은 리셋 전까지 사라진 상태 유지)
 app.post('/api/fail_steal', (req, res) => {
     const username = req.cookies.auth_user;
     const { stageIndex, slotIndex, progressMade } = req.body;
@@ -482,10 +502,6 @@ app.post('/api/escape', async (req, res) => {
         if (specialType === 'cosmic') eggToGive = '코스믹알';
         else if (specialType === 'secret') eggToGive = '시크릿알';
         globalSpecialEgg = null;
-    }
-
-    if (slotIndex >= 0 && slotIndex < 5) {
-        stagesState[stageIndex].slots[slotIndex] = { busyBy: null, distanceProgress: 0 };
     }
 
     user.inventory.push(eggToGive);
