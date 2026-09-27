@@ -119,14 +119,15 @@
         .money-tick { animation: tickPop 0.3s ease-out; }
         @keyframes tickPop { 0% { transform: scale(1); color: #0984e3; } 50% { transform: scale(1.1); color: #d63031; } 100% { transform: scale(1); color: #0984e3; } }
 
-        /* 💡 훔치기 5개 둥지 레이아웃 */
         #eggs-container { display: none; position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); gap: 15px; pointer-events: auto; flex-wrap: wrap; justify-content: center; width: 95%; max-width: 850px; }
         .egg-item { cursor: pointer; transition: 0.15s; position: relative; }
         .egg-item:active { transform: scale(0.92); }
         .egg-label { background: linear-gradient(135deg, #0984e3, #74b9ff); color: #fff; font-weight: 900; font-size: 18px; padding: 12px 28px; border-radius: 30px; box-shadow: 0 8px 20px rgba(9, 132, 227, 0.4); text-align: center; }
         
-        /* 💡 누군가 훔치는 중이거나 가져간 알은 화면에서 아예 사라짐 */
+        /* 💡 훔치는 중일 때는 흐려지고, 훔치기 성공 시에는 완전히 사라짐 */
+        .egg-item.busy { opacity: 0.45; filter: grayscale(0.5); }
         .egg-item.gone { display: none !important; }
+
         .egg-label.cosmic-egg { background: linear-gradient(135deg, #8e44ad, #9b59b6) !important; color: #fff !important; box-shadow: 0 0 20px rgba(155, 89, 182, 0.8) !important; }
         .egg-label.secret-egg { background: linear-gradient(135deg, #2d3436, #000000) !important; color: #fff !important; border: 2px solid #fff; box-shadow: 0 0 20px rgba(0, 0, 0, 0.9) !important; }
 
@@ -298,7 +299,7 @@
                 <div class="sq-btn btn-upgrade" onclick="openModal('upgrade-modal'); renderUpgrade();"><span>⚡</span>강화</div>
             </div>
 
-            <!-- 💡 5개의 알 둥지 -->
+            <!-- 5개의 알 둥지 -->
             <div id="eggs-container">
                 <div class="egg-item" id="egg-slot-0" onclick="stealEgg(0);"><div class="egg-label" id="egg-label-0">훔치기</div></div>
                 <div class="egg-item" id="egg-slot-1" onclick="stealEgg(1);"><div class="egg-label" id="egg-label-1">훔치기</div></div>
@@ -645,7 +646,6 @@
                     nightEl.style.color = '#2c3e50';
                 }
 
-                // 전체 공지 바
                 const noticeBar = document.getElementById('global-notice-bar');
                 if (syncData.globalNotice) {
                     noticeBar.innerText = syncData.globalNotice;
@@ -654,7 +654,6 @@
                     noticeBar.style.display = 'none';
                 }
 
-                // 맵 내 둥지 상태 동기화
                 if (phase === 'MAP_IDLE') {
                     currentStageUsers = syncData.usersInStage || [];
                     document.getElementById('stage-user-count').innerText = `👥 인원: ${currentStageUsers.length}명`;
@@ -675,11 +674,16 @@
                         if (isCosmic) labelEl.classList.add('cosmic-egg');
                         if (isSecret) labelEl.classList.add('secret-egg');
 
-                        // 💡 훔치기 시작했거나 가져간 알은 아예 사라짐 (gone)
-                        if (slot && (slot.isGone || slot.busyBy)) {
+                        // 💡 훔치기 성공 시에만 완전히 사라짐(gone), 훔치는 중일 땐 점유(busy)
+                        if (slot && slot.isGone) {
                             slotEl.classList.add('gone');
+                        } else if (slot && slot.busyBy) {
+                            slotEl.classList.remove('gone');
+                            slotEl.classList.add('busy');
+                            labelEl.innerText = `${slot.busyBy} 훔치는 중!`;
                         } else {
                             slotEl.classList.remove('gone');
+                            slotEl.classList.remove('busy');
                             if (isCosmic) labelEl.innerText = `코스믹 알 훔치기`;
                             else if (isSecret) labelEl.innerText = `시크릿 알 훔치기`;
                             else {
@@ -863,9 +867,6 @@
             currentSlotIndex = slotIndex;
             targetEscapeClicks = data.targetEscapeClicks;
 
-            // 💡 훔치기 시작한 즉시 클라이언트에서도 버튼 숨김
-            document.getElementById(`egg-slot-${slotIndex}`).classList.add('gone');
-
             const labelEl = document.getElementById(`egg-label-${slotIndex}`);
             isSpecialTarget = false;
             specialTargetType = null;
@@ -915,7 +916,7 @@
                         body: JSON.stringify({ stageIndex: currentStageIndex, slotIndex: currentSlotIndex, progressMade: playerProgress })
                     });
 
-                    alert(`앗! ${stage.boss}에게 잡혔습니다...\n알을 도난당해 슬롯이 비어있습니다. 밤이 되면 다시 충전됩니다!`);
+                    alert(`앗! ${stage.boss}에게 잡혔습니다...\n이전까지 도망친 거리는 다음 사람을 위해 남겨두었습니다!`);
                     returnToLobby();
                 } else updateChaseUI();
             }, 100);
