@@ -12,17 +12,17 @@ const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017';
 const dbName = 'egg_game_db';
 let db;
 
+// 💡 스페셜 알 및 이어달리기 파밍 속도를 감안하여 점프패드 가격 대폭 상향
 const SHOP_ITEMS = {
     '기본 점핑패드': { price: 0, mult: 1 },
-    '골드 점프패드': { price: 150000, mult: 1.5 },
-    '다이아 점프패드': { price: 2000000, mult: 2.5 },
-    '무지개 점프패드': { price: 50000000, mult: 4 },
-    '다크 점프패드': { price: 1000000000, mult: 7 },
-    '공허 점프패드': { price: 35000000000, mult: 15 },
-    '천상 점프패드': { price: 1000000000000, mult: 30 }
+    '골드 점프패드': { price: 500000, mult: 1.5 },
+    '다이아 점프패드': { price: 10000000, mult: 2.5 },
+    '무지개 점프패드': { price: 300000000, mult: 4 },
+    '다크 점프패드': { price: 8000000000, mult: 7 },
+    '공허 점프패드': { price: 200000000000, mult: 15 },
+    '천상 점프패드': { price: 10000000000000, mult: 30 }
 };
 
-// 💡 우주, 천사, 악마 스테이지 난이도 대폭 강화
 const STAGES = [
     { name: 'Lv.1 바다', escapeClicks: 500, eggName: '바다알' }, 
     { name: 'Lv.2 산', escapeClicks: 5000, eggName: '산알' },
@@ -46,17 +46,16 @@ const PET_POOLS = {
 };
 
 const BASE_MPS = { 
-    '바다알': 10, 
-    '산알': 50, 
-    '용암알': 400, 
-    '하늘알': 3000, 
-    '벚꽃알': 25000, 
-    '우주알': 250000, 
-    '천사알': 2500000, 
-    '악마알': 25000000 
+    '바다알': 8, 
+    '산알': 40, 
+    '용암알': 320, 
+    '하늘알': 2400, 
+    '벚꽃알': 20000, 
+    '우주알': 200000, 
+    '천사알': 2000000, 
+    '악마알': 20000000 
 };
 
-// 도감 보상 기준치
 const DEX_REWARDS = {
     '일반': { power: 2, money: 1000 },
     '레어': { power: 5, money: 5000 },
@@ -69,9 +68,7 @@ const DEX_REWARDS = {
 };
 
 function getPetRarity(eggName, index, totalLength) {
-    if ((eggName === '천사알' || eggName === '악마알') && index === totalLength - 1) {
-        return '디바인';
-    }
+    if ((eggName === '천사알' || eggName === '악마알') && index === totalLength - 1) return '디바인';
 
     let minRarityIdx = 0;
     if (eggName === '용암알') minRarityIdx = 1;
@@ -82,13 +79,67 @@ function getPetRarity(eggName, index, totalLength) {
 
     const rarities = ['일반', '레어', '에픽', '전설', '신화', '코스믹', '비밀'];
     const available = rarities.slice(minRarityIdx);
-
     const ratio = index / Math.max(1, totalLength - 1);
     const chosenIdx = Math.min(available.length - 1, Math.floor(ratio * available.length));
     return available[chosenIdx];
 }
 
+// 💡 멀티플레이 & 스테이지 둥지 (5개) 상태 관리
+// stagesState[stageIndex].slots[slotIndex] = { busyBy: '닉네임', distanceProgress: 누적도망거리 }
+const stagesState = STAGES.map(() => ({
+    slots: Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0 }))
+}));
+
+// 유저 위치 추적: username => { stageIndex, lastSeen }
+const userLocations = new Map();
 const onlineUsers = new Map();
+
+// 💡 낮/밤 및 스페셜 알 스폰 타이머 시스템
+// 낮 300초(5분), 밤 10초
+let isNight = false;
+let cycleTimer = 300; 
+let nightCount = 0;
+let nextCosmicTarget = 7 + Math.floor(Math.random() * 4); // 7~10회차 밤
+let nextSecretTarget = 18 + Math.floor(Math.random() * 5); // 18~22회차 밤
+
+let globalSpecialEgg = null; // { type: 'cosmic' | 'secret', stageIndex, slotIndex, eggName }
+let globalNotice = "";
+
+setInterval(() => {
+    cycleTimer--;
+    if (cycleTimer <= 0) {
+        if (!isNight) {
+            // 낮 종료 -> 밤 시작 (10초)
+            isNight = true;
+            cycleTimer = 10;
+            nightCount++;
+
+            // 모든 맵 유저 로비 강제 귀환 처리 (서버단 둥지 전부 해제)
+            stagesState.forEach(st => {
+                st.slots.forEach(slot => { slot.busyBy = null; });
+            });
+
+            // 스페셜 알 스폰 검사
+            if (nightCount >= nextCosmicTarget) {
+                const sIdx = Math.floor(Math.random() * STAGES.length);
+                const slotIdx = Math.floor(Math.random() * 5);
+                globalSpecialEgg = { type: 'cosmic', stageIndex: sIdx, slotIndex: slotIdx, eggName: '코스믹알' };
+                globalNotice = `🌌 전체 공지: [${STAGES[sIdx].name}]에 코스믹 알이 스폰되었습니다!`;
+                nextCosmicTarget = nightCount + 7 + Math.floor(Math.random() * 4);
+            } else if (nightCount >= nextSecretTarget) {
+                const sIdx = Math.floor(Math.random() * STAGES.length);
+                const slotIdx = Math.floor(Math.random() * 5);
+                globalSpecialEgg = { type: 'secret', stageIndex: sIdx, slotIndex: slotIdx, eggName: '시크릿알' };
+                globalNotice = `🌑 전체 공지: [${STAGES[sIdx].name}]에 전설의 시크릿 알이 스폰되었습니다!`;
+                nextSecretTarget = nightCount + 18 + Math.floor(Math.random() * 5);
+            }
+        } else {
+            // 밤 종료 -> 낮 시작 (300초)
+            isNight = false;
+            cycleTimer = 300;
+        }
+    }
+}, 1000);
 
 async function startServer() {
     try {
@@ -133,7 +184,10 @@ app.post('/api/login', async (req, res) => {
 
 app.post('/api/logout', (req, res) => { 
     const username = req.cookies.auth_user;
-    if(username) onlineUsers.delete(username); 
+    if(username) {
+        onlineUsers.delete(username);
+        userLocations.delete(username);
+    }
     res.clearCookie('auth_user'); 
     res.json({ success: true }); 
 });
@@ -155,6 +209,85 @@ app.get('/api/userdata', async (req, res) => {
 app.post('/api/finish_intro', async (req, res) => {
     const username = req.cookies.auth_user;
     if(username) await db.collection('users').updateOne({ username }, { $set: { isFirstLogin: false } });
+    res.json({ success: true });
+});
+
+// 💡 맵 동기화 및 실시간 낮/밤/보너스 알 상태 수신 (1초마다 클라이언트가 동기화)
+app.post('/api/sync_stage', (req, res) => {
+    const username = req.cookies.auth_user;
+    const { stageIndex } = req.body;
+    if (!username) return res.json({ success: false });
+
+    onlineUsers.set(username, Date.now());
+    if (stageIndex !== undefined && stageIndex !== null && stageIndex >= 0) {
+        userLocations.set(username, { stageIndex, lastSeen: Date.now() });
+    } else {
+        userLocations.delete(username);
+    }
+
+    // 해당 스테이지에 머무르는 유저 목록 추출
+    const usersInStage = [];
+    const now = Date.now();
+    for (const [u, info] of userLocations.entries()) {
+        if (now - info.lastSeen < 6000 && info.stageIndex === stageIndex) {
+            usersInStage.push(u);
+        }
+    }
+
+    const currentStageState = (stageIndex >= 0 && stageIndex < stagesState.length) ? stagesState[stageIndex] : null;
+
+    res.json({
+        success: true,
+        isNight,
+        cycleTimer,
+        globalNotice,
+        globalSpecialEgg,
+        usersInStage,
+        slots: currentStageState ? currentStageState.slots : []
+    });
+});
+
+// 💡 알 훔치기 시작 선언 (점유 및 잔여 거리 수령)
+app.post('/api/start_steal', (req, res) => {
+    const username = req.cookies.auth_user;
+    const { stageIndex, slotIndex } = req.body;
+    if (!username) return res.json({ success: false, message: '로그인이 필요합니다.' });
+    if (isNight) return res.json({ success: false, message: '밤에는 알을 훔칠 수 없습니다!' });
+
+    if (stageIndex < 0 || stageIndex >= stagesState.length || slotIndex < 0 || slotIndex >= 5) {
+        return res.json({ success: false, message: '잘못된 슬롯입니다.' });
+    }
+
+    const slot = stagesState[stageIndex].slots[slotIndex];
+    if (slot.busyBy && slot.busyBy !== username) {
+        return res.json({ success: false, message: `${slot.busyBy} 님이 이미 훔치는 중입니다!` });
+    }
+
+    slot.busyBy = username;
+    const totalEscape = STAGES[stageIndex].escapeClicks;
+    const savedDistance = slot.distanceProgress || 0;
+    const remainingClicks = Math.max(50, totalEscape - savedDistance);
+
+    res.json({
+        success: true,
+        savedDistance,
+        targetEscapeClicks: remainingClicks
+    });
+});
+
+// 💡 훔치다 잡혔을 때: 도망친 거리 저장 및 점유 해제
+app.post('/api/fail_steal', (req, res) => {
+    const username = req.cookies.auth_user;
+    const { stageIndex, slotIndex, progressMade } = req.body;
+    if (!username) return res.json({ success: false });
+
+    if (stageIndex >= 0 && stageIndex < stagesState.length && slotIndex >= 0 && slotIndex < 5) {
+        const slot = stagesState[stageIndex].slots[slotIndex];
+        if (slot.busyBy === username) {
+            slot.busyBy = null;
+            slot.distanceProgress = Math.min(STAGES[stageIndex].escapeClicks * 0.9, (slot.distanceProgress || 0) + (progressMade || 0));
+        }
+    }
     res.json({ success: true });
 });
 
@@ -205,33 +338,49 @@ app.post('/api/hatch', async (req, res) => {
 
     user.inventory.splice(eggIndex, 1);
 
-    const pool = PET_POOLS[eggName];
-    if (!pool) return res.json({ success: false, message: '잘못된 알입니다.' });
+    let pickedEmoji = '❓';
+    let rarity = '일반';
+    let baseMps = 10;
 
-    let weights = [];
-    let totalWeight = 0;
-    for(let i = 0; i < pool.length; i++) {
-        let w = Math.pow(0.55, i); 
-        weights.push(w);
-        totalWeight += w;
-    }
-    let r = Math.random() * totalWeight;
-    let randomIndex = 0;
-    for(let i = 0; i < pool.length; i++) {
-        if(r < weights[i]) { randomIndex = i; break; }
-        r -= weights[i];
-    }
+    // 💡 스페셜 알(코스믹알, 시크릿알) 확정 등급 처리
+    if (eggName === '코스믹알') {
+        const cosmicEmojis = ['🌌', '🪐', '🌠', '☄️', '🛸', '🛰️', '👽'];
+        pickedEmoji = cosmicEmojis[Math.floor(Math.random() * cosmicEmojis.length)];
+        rarity = '코스믹';
+        baseMps = 3500000;
+    } else if (eggName === '시크릿알') {
+        const secretEmojis = ['👁️', '🌑', '🖤', '⛓️', '🎭', '🔮', '🗝️'];
+        pickedEmoji = secretEmojis[Math.floor(Math.random() * secretEmojis.length)];
+        rarity = '비밀';
+        baseMps = 35000000;
+    } else {
+        const pool = PET_POOLS[eggName];
+        if (!pool) return res.json({ success: false, message: '잘못된 알입니다.' });
 
-    const pickedEmoji = pool[randomIndex];
-    const baseMps = BASE_MPS[eggName];
+        let weights = [];
+        let totalWeight = 0;
+        for(let i = 0; i < pool.length; i++) {
+            let w = Math.pow(0.55, i); 
+            weights.push(w);
+            totalWeight += w;
+        }
+        let r = Math.random() * totalWeight;
+        let randomIndex = 0;
+        for(let i = 0; i < pool.length; i++) {
+            if(r < weights[i]) { randomIndex = i; break; }
+            r -= weights[i];
+        }
+
+        pickedEmoji = pool[randomIndex];
+        baseMps = Math.floor(BASE_MPS[eggName] * Math.pow(1.45, randomIndex));
+        rarity = getPetRarity(eggName, randomIndex, pool.length);
+    }
     
-    // 💡 무게(Weight) 최대 10,000kg 지수 확률 곡선 적용
+    // 최대 10,000kg 지수 가중치
     const rawWeight = 1.0 + Math.pow(Math.random(), 4) * 9999.0;
     const weight = Math.round(rawWeight * 10) / 10;
-    const weightBonus = 1 + (weight * 0.002); // 무게 스케일에 맞춘 보너스
-
-    const mps = Math.floor(baseMps * Math.pow(1.45, randomIndex) * weightBonus);
-    const rarity = getPetRarity(eggName, randomIndex, pool.length);
+    const weightBonus = 1 + (weight * 0.002);
+    const mps = Math.floor(baseMps * weightBonus);
     
     const newPet = { 
         id: Date.now() + Math.floor(Math.random()*1000), 
@@ -247,7 +396,6 @@ app.post('/api/hatch', async (req, res) => {
     res.json({ success: true, newPet, inventory: user.inventory, pets: user.pets });
 });
 
-// 💡 도감 보상 수령 API
 app.post('/api/claim_dex', async (req, res) => {
     const username = req.cookies.auth_user;
     const { eggName, emoji } = req.body;
@@ -256,17 +404,12 @@ app.post('/api/claim_dex', async (req, res) => {
 
     const key = `${eggName}_${emoji}`;
     const claimedDex = user.claimedDex || [];
-    if (claimedDex.includes(key)) {
-        return res.json({ success: false, message: '이미 보상을 수령한 동물입니다.' });
-    }
+    if (claimedDex.includes(key)) return res.json({ success: false, message: '이미 보상을 수령한 동물입니다.' });
 
-    // 실제로 해당 동물을 획득했는지 검증
     const hasPet = user.pets && user.pets.some(p => p.eggSource === eggName && p.emoji === emoji);
-    if (!hasPet) {
-        return res.json({ success: false, message: '아직 획득하지 못한 동물입니다.' });
-    }
+    if (!hasPet) return res.json({ success: false, message: '아직 획득하지 못한 동물입니다.' });
 
-    const pool = PET_POOLS[eggName];
+    const pool = PET_POOLS[eggName] || [];
     const idx = pool.indexOf(emoji);
     const rarity = getPetRarity(eggName, idx, pool.length);
     const reward = DEX_REWARDS[rarity] || { power: 2, money: 1000 };
@@ -276,11 +419,7 @@ app.post('/api/claim_dex', async (req, res) => {
     const newMoney = (user.money || 0) + reward.money;
 
     await db.collection('users').updateOne({ username }, {
-        $set: {
-            claimedDex: claimedDex,
-            clickPower: newPower,
-            money: newMoney
-        }
+        $set: { claimedDex: claimedDex, clickPower: newPower, money: newMoney }
     });
 
     res.json({
@@ -311,11 +450,7 @@ app.post('/api/sell_pet', async (req, res) => {
     let newEquippedPets = (user.equippedPets || []).filter(id => id !== petId);
 
     await db.collection('users').updateOne({ username }, { 
-        $set: { 
-            pets: user.pets, 
-            money: user.money, 
-            equippedPets: newEquippedPets 
-        } 
+        $set: { pets: user.pets, money: user.money, equippedPets: newEquippedPets } 
     });
 
     res.json({ 
@@ -347,26 +482,33 @@ app.post('/api/buy', async (req, res) => {
     }
 });
 
+// 💡 탈출 성공 처리 및 슬롯 거리 초기화
 app.post('/api/escape', async (req, res) => {
     const username = req.cookies.auth_user;
-    const { stageIndex, currentClicks } = req.body;
+    const { stageIndex, slotIndex, isSpecial, specialType } = req.body;
     
     if (stageIndex === undefined || stageIndex < 0 || stageIndex >= STAGES.length) {
         return res.json({ success: false, message: '비정상적인 접근입니다.' });
     }
 
-    const stage = STAGES[stageIndex];
-    if (currentClicks === undefined || currentClicks < stage.escapeClicks) {
-        return res.json({ success: false, message: '아직 탈출 지점에 도달하지 못했습니다!' });
-    }
-
     const user = await db.collection('users').findOne({ username });
     if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
 
-    user.inventory.push(stage.eggName);
+    let eggToGive = STAGES[stageIndex].eggName;
+    if (isSpecial) {
+        if (specialType === 'cosmic') eggToGive = '코스믹알';
+        else if (specialType === 'secret') eggToGive = '시크릿알';
+        globalSpecialEgg = null; // 스페셜 알 획득 시 맵에서 회수
+    }
 
+    // 해당 슬롯 초기화
+    if (slotIndex >= 0 && slotIndex < 5) {
+        stagesState[stageIndex].slots[slotIndex] = { busyBy: null, distanceProgress: 0 };
+    }
+
+    user.inventory.push(eggToGive);
     await db.collection('users').updateOne({ username }, { $set: { inventory: user.inventory } });
-    res.json({ success: true, eggName: stage.eggName, inventory: user.inventory });
+    res.json({ success: true, eggName: eggToGive, inventory: user.inventory });
 });
 
 app.post('/api/equip', async (req, res) => {
