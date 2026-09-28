@@ -1,6 +1,7 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
 const cookieParser = require('cookie-parser');
+const crypto = require('crypto');
 const path = require('path');
 
 const app = express();
@@ -11,6 +12,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017';
 const dbName = 'egg_game_db';
 let db;
+
+// 💡 안전한 세션 토큰 스토어 (쿠키 위조 방지)
+const sessions = new Map(); // token => username
+
+function authenticateUser(req) {
+    const token = req.cookies.auth_session;
+    if (!token || !sessions.has(token)) return null;
+    return sessions.get(token);
+}
 
 const SHOP_ITEMS = {
     '기본 점핑패드': { price: 0, mult: 1 },
@@ -83,14 +93,15 @@ function getPetRarity(eggName, index, totalLength) {
     return available[chosenIdx];
 }
 
-// 5개 슬롯 상태 관리
 const stagesState = STAGES.map(() => ({
-    slots: Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false }))
+    slots: Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false })),
+    traps: [] // { owner: '닉네임' }
 }));
 
 const userLocations = new Map();
 const onlineUsers = new Map();
 
+// 💡 밤 13초, 낮 300초
 let isNight = false;
 let cycleTimer = 300;
 let nightCount = 0;
@@ -98,47 +109,61 @@ let nextCosmicTarget = 7 + Math.floor(Math.random() * 4);
 let nextSecretTarget = 18 + Math.floor(Math.random() * 5);
 
 let globalSpecialEgg = null;
+let upcomingSpecialType = null; // 3초 전 예고용 ('cosmic' | 'secret')
+let upcomingSpecialStage = null;
 let globalNotice = "";
+let trapNotice = "";
 
 setInterval(() => {
     cycleTimer--;
 
-    // 💡 밤 5초 경과 시점: 모든 슬롯의 isGone과 누적 거리 리셋
-    if (isNight && cycleTimer === 5) {
-        stagesState.forEach(st => {
-            st.slots = Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false }));
-        });
-        globalNotice = "⚡ 모든 알이 리셋되었습니다! 다음 낮에 새로운 알들이 기다립니다.";
+    // 밤 3초 전: 다음 낮 스페셜 알 스폰 사전 계산 및 예고 플래그 세팅
+    if (isNight && cycleTimer === 3) {
+        if (nightCount >= nextCosmicTarget) {
+            upcomingSpecialType = 'cosmic';
+            upcomingSpecialStage = Math.floor(Math.random() * STAGES.length);
+        } else if (nightCount >= nextSecretTarget) {
+            upcomingSpecialType = 'secret';
+            upcomingSpecialStage = Math.floor(Math.random() * STAGES.length);
+        } else {
+            upcomingSpecialType = null;
+            upcomingSpecialStage = null;
+        }
     }
 
     if (cycleTimer <= 0) {
         if (!isNight) {
+            // 낮 종료 -> 밤 시작 (13초)
             isNight = true;
-            cycleTimer = 10;
+            cycleTimer = 13;
             nightCount++;
-            globalNotice = "🌙 밤이 찾아왔습니다! 잠시 후 알들이 리셋됩니다.";
+            upcomingSpecialType = null;
 
+            // 5개 슬롯 전체 부활 및 거리 리셋
             stagesState.forEach(st => {
-                st.slots.forEach(slot => { slot.busyBy = null; });
+                st.slots = Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false }));
             });
         } else {
+            // 밤 종료 -> 낮 시작 (300초)
             isNight = false;
             cycleTimer = 300;
-            globalNotice = "";
 
-            if (nightCount >= nextCosmicTarget) {
-                const sIdx = Math.floor(Math.random() * STAGES.length);
+            if (upcomingSpecialType) {
+                const sIdx = upcomingSpecialStage !== null ? upcomingSpecialStage : Math.floor(Math.random() * STAGES.length);
                 const slotIdx = Math.floor(Math.random() * 5);
-                globalSpecialEgg = { type: 'cosmic', stageIndex: sIdx, slotIndex: slotIdx, eggName: '코스믹알' };
-                globalNotice = `🌌 [전체 공지] ${STAGES[sIdx].name}에 코스믹 알이 스폰되었습니다!`;
-                nextCosmicTarget = nightCount + 7 + Math.floor(Math.random() * 4);
-            } else if (nightCount >= nextSecretTarget) {
-                const sIdx = Math.floor(Math.random() * STAGES.length);
-                const slotIdx = Math.floor(Math.random() * 5);
-                globalSpecialEgg = { type: 'secret', stageIndex: sIdx, slotIndex: slotIdx, eggName: '시크릿알' };
-                globalNotice = `🌑 [전체 공지] ${STAGES[sIdx].name}에 전설의 시크릿 알이 스폰되었습니다!`;
-                nextSecretTarget = nightCount + 18 + Math.floor(Math.random() * 5);
+                if (upcomingSpecialType === 'cosmic') {
+                    globalSpecialEgg = { type: 'cosmic', stageIndex: sIdx, slotIndex: slotIdx, eggName: '코스믹알' };
+                    globalNotice = `🌌 [전체 공지] ${STAGES[sIdx].name}에 코스믹 알이 출현했습니다!`;
+                    nextCosmicTarget = nightCount + 7 + Math.floor(Math.random() * 4);
+                } else if (upcomingSpecialType === 'secret') {
+                    globalSpecialEgg = { type: 'secret', stageIndex: sIdx, slotIndex: slotIdx, eggName: '시크릿알' };
+                    globalNotice = `🌑 [전체 공지] ${STAGES[sIdx].name}에 전설의 시크릿 알이 출현했습니다!`;
+                    nextSecretTarget = nightCount + 18 + Math.floor(Math.random() * 5);
+                }
+            } else {
+                globalNotice = "";
             }
+            upcomingSpecialType = null;
         }
     }
 }, 1000);
@@ -165,7 +190,8 @@ app.post('/api/signup', async (req, res) => {
 
     const newUser = {
         username, password, clickPower: 1, money: 10000, 
-        inventory: ['기본 점핑패드'], equipped: '기본 점핑패드', pets: [], equippedPets: [], claimedDex: [],
+        inventory: ['기본 점핑패드', '트랩'], equipped: '기본 점핑패드', pets: [], equippedPets: [], claimedDex: [],
+        installedTrapStage: null,
         isFirstLogin: true 
     };
     await db.collection('users').insertOne(newUser);
@@ -176,7 +202,10 @@ app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await db.collection('users').findOne({ username, password });
     if (user) {
-        res.cookie('auth_user', username, { maxAge: 1000 * 60 * 60 * 24, httpOnly: true });
+        // 난수 토큰 발급
+        const token = crypto.randomBytes(32).toString('hex');
+        sessions.set(token, username);
+        res.cookie('auth_session', token, { maxAge: 1000 * 60 * 60 * 24, httpOnly: true });
         onlineUsers.set(username, Date.now()); 
         res.json({ success: true });
     } else {
@@ -185,17 +214,21 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => { 
-    const username = req.cookies.auth_user;
-    if(username) {
-        onlineUsers.delete(username);
-        userLocations.delete(username);
+    const token = req.cookies.auth_session;
+    if (token) {
+        const username = sessions.get(token);
+        sessions.delete(token);
+        if (username) {
+            onlineUsers.delete(username);
+            userLocations.delete(username);
+        }
     }
-    res.clearCookie('auth_user'); 
+    res.clearCookie('auth_session'); 
     res.json({ success: true }); 
 });
 
 app.get('/api/userdata', async (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     if (!username) return res.json({ success: false });
     const user = await db.collection('users').findOne({ username });
     if (user) {
@@ -204,18 +237,21 @@ app.get('/api/userdata', async (req, res) => {
         if (!user.pets) user.pets = [];
         if (!user.equippedPets) user.equippedPets = [];
         if (!user.claimedDex) user.claimedDex = [];
+        if (!user.inventory.includes('트랩') && user.installedTrapStage === null) {
+            user.inventory.push('트랩');
+        }
         res.json({ success: true, user });
     } else res.json({ success: false });
 });
 
 app.post('/api/finish_intro', async (req, res) => {
-    const username = req.cookies.auth_user;
-    if(username) await db.collection('users').updateOne({ username }, { $set: { isFirstLogin: false } });
+    const username = authenticateUser(req);
+    if (username) await db.collection('users').updateOne({ username }, { $set: { isFirstLogin: false } });
     res.json({ success: true });
 });
 
 app.post('/api/sync_stage', (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     const { stageIndex } = req.body;
     if (!username) return res.json({ success: false });
 
@@ -240,16 +276,65 @@ app.post('/api/sync_stage', (req, res) => {
         success: true,
         isNight,
         cycleTimer,
+        upcomingSpecialType,
         globalNotice,
+        trapNotice,
         globalSpecialEgg,
         usersInStage,
         slots: currentStageState ? currentStageState.slots : []
     });
 });
 
-// 💡 훔치기 시작: isGone은 그대로 두고 busyBy만 점유 (훔치는 중 표시)
+// 💡 트랩 설치 API
+app.post('/api/trap_install', async (req, res) => {
+    const username = authenticateUser(req);
+    const { stageIndex } = req.body;
+    if (!username) return res.json({ success: false, message: '인증 실패' });
+
+    const user = await db.collection('users').findOne({ username });
+    if (!user) return res.json({ success: false });
+
+    if (user.installedTrapStage !== null && user.installedTrapStage !== undefined) {
+        return res.json({ success: false, message: '이미 설치된 트랩이 있습니다. 회수 후 다시 설치하세요.' });
+    }
+
+    const trapIdx = user.inventory.indexOf('트랩');
+    if (trapIdx === -1) return res.json({ success: false, message: '트랩을 보유하고 있지 않습니다.' });
+
+    user.inventory.splice(trapIdx, 1);
+    stagesState[stageIndex].traps.push({ owner: username });
+
+    await db.collection('users').updateOne({ username }, {
+        $set: { inventory: user.inventory, installedTrapStage: stageIndex }
+    });
+
+    res.json({ success: true, inventory: user.inventory, installedTrapStage: stageIndex });
+});
+
+// 💡 트랩 회수 API
+app.post('/api/trap_recall', async (req, res) => {
+    const username = authenticateUser(req);
+    if (!username) return res.json({ success: false, message: '인증 실패' });
+
+    const user = await db.collection('users').findOne({ username });
+    if (!user || user.installedTrapStage === null || user.installedTrapStage === undefined) {
+        return res.json({ success: false, message: '회수할 트랩이 없습니다.' });
+    }
+
+    const sIdx = user.installedTrapStage;
+    stagesState[sIdx].traps = stagesState[sIdx].traps.filter(t => t.owner !== username);
+
+    user.inventory.push('트랩');
+    await db.collection('users').updateOne({ username }, {
+        $set: { inventory: user.inventory, installedTrapStage: null }
+    });
+
+    res.json({ success: true, inventory: user.inventory, installedTrapStage: null });
+});
+
+// 💡 알 훔치기 시작 + 트랩 10% 발동 판정
 app.post('/api/start_steal', (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     const { stageIndex, slotIndex } = req.body;
     if (!username) return res.json({ success: false, message: '로그인이 필요합니다.' });
     if (isNight) return res.json({ success: false, message: '밤에는 알을 훔칠 수 없습니다!' });
@@ -258,9 +343,17 @@ app.post('/api/start_steal', (req, res) => {
         return res.json({ success: false, message: '잘못된 슬롯입니다.' });
     }
 
+    // 🪤 트랩 10% 발동 판정 (타인이 설치한 트랩에 걸림)
+    const stageTraps = stagesState[stageIndex].traps.filter(t => t.owner !== username);
+    if (stageTraps.length > 0 && Math.random() < 0.1) {
+        trapNotice = `🚨 [${username}] 님이 [${STAGES[stageIndex].name}]에서 트랩에 걸렸습니다!`;
+        setTimeout(() => { trapNotice = ""; }, 5000);
+        return res.json({ success: false, trapped: true, message: '덜컥! 누군가 설치한 덫에 걸렸습니다! 5초간 행동 불능이 되며 로비로 추방됩니다.' });
+    }
+
     const slot = stagesState[stageIndex].slots[slotIndex];
     if (slot.isGone) {
-        return res.json({ success: false, message: '이미 다른 유저가 훔쳐간 알입니다!' });
+        return res.json({ success: false, message: '이미 훔쳐간 알입니다!' });
     }
     if (slot.busyBy && slot.busyBy !== username) {
         return res.json({ success: false, message: `${slot.busyBy} 님이 이미 훔치는 중입니다!` });
@@ -279,9 +372,8 @@ app.post('/api/start_steal', (req, res) => {
     });
 });
 
-// 잡혔을 때: 점유 해제 및 진행 거리 보존 (아직 성공 못했으므로 isGone은 여전히 false)
 app.post('/api/fail_steal', (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     const { stageIndex, slotIndex, progressMade } = req.body;
     if (!username) return res.json({ success: false });
 
@@ -296,7 +388,7 @@ app.post('/api/fail_steal', (req, res) => {
 });
 
 app.post('/api/tick', async (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     const { isAutoUpgrading } = req.body;
     if (!username) return res.json({ success: false });
 
@@ -332,7 +424,7 @@ app.get('/api/online', (req, res) => {
 });
 
 app.post('/api/hatch', async (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     const { eggName } = req.body;
     const user = await db.collection('users').findOne({ username });
     if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
@@ -399,7 +491,7 @@ app.post('/api/hatch', async (req, res) => {
 });
 
 app.post('/api/claim_dex', async (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     const { eggName, emoji } = req.body;
     const user = await db.collection('users').findOne({ username });
     if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
@@ -435,7 +527,7 @@ app.post('/api/claim_dex', async (req, res) => {
 });
 
 app.post('/api/sell_pet', async (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     const { petId } = req.body;
     const user = await db.collection('users').findOne({ username });
     if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
@@ -465,7 +557,7 @@ app.post('/api/sell_pet', async (req, res) => {
 });
 
 app.post('/api/buy', async (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     const { itemName } = req.body;
     const user = await db.collection('users').findOne({ username });
     if (!user) return res.json({ success: false });
@@ -484,13 +576,19 @@ app.post('/api/buy', async (req, res) => {
     }
 });
 
-// 💡 훔치기 성공 시에만 해당 알을 완전히 사라지게(isGone = true) 설정
+// 💡 탈출 엄격 검증 (치트 방지)
 app.post('/api/escape', async (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     const { stageIndex, slotIndex, isSpecial, specialType } = req.body;
     
     if (stageIndex === undefined || stageIndex < 0 || stageIndex >= STAGES.length) {
         return res.json({ success: false, message: '비정상적인 접근입니다.' });
+    }
+
+    const slot = stagesState[stageIndex].slots[slotIndex];
+    // 정당하게 start_steal을 수행하여 점유 중인지 체크
+    if (!slot || slot.busyBy !== username) {
+        return res.json({ success: false, message: '잘못된 탈출 검증 요청입니다.' });
     }
 
     const user = await db.collection('users').findOne({ username });
@@ -498,15 +596,19 @@ app.post('/api/escape', async (req, res) => {
 
     let eggToGive = STAGES[stageIndex].eggName;
     if (isSpecial) {
+        // 서버의 실제 스페셜 알 스폰 정보와 일치하는지 엄격 검증
+        if (!globalSpecialEgg || globalSpecialEgg.stageIndex !== stageIndex || globalSpecialEgg.slotIndex !== slotIndex || globalSpecialEgg.type !== specialType) {
+            return res.json({ success: false, message: '존재하지 않는 스페셜 알입니다.' });
+        }
         if (specialType === 'cosmic') eggToGive = '코스믹알';
         else if (specialType === 'secret') eggToGive = '시크릿알';
         globalSpecialEgg = null;
     }
 
-    // 💡 탈출 성공 확정: 해당 슬롯은 밤 리셋 전까지 완전히 사라짐
-    if (slotIndex >= 0 && slotIndex < 5) {
-        stagesState[stageIndex].slots[slotIndex] = { busyBy: null, distanceProgress: 0, isGone: true };
-    }
+    // 성공한 알은 완전히 소멸
+    slot.busyBy = null;
+    slot.distanceProgress = 0;
+    slot.isGone = true;
 
     user.inventory.push(eggToGive);
     await db.collection('users').updateOne({ username }, { $set: { inventory: user.inventory } });
@@ -514,7 +616,7 @@ app.post('/api/escape', async (req, res) => {
 });
 
 app.post('/api/equip', async (req, res) => {
-    const username = req.cookies.auth_user;
+    const username = authenticateUser(req);
     const { equipped, equippedPets } = req.body;
     const user = await db.collection('users').findOne({ username });
     if (!user) return res.json({ success: false });
