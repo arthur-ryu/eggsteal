@@ -46,11 +46,13 @@
         }
         @keyframes shine { to { background-position: 200% center; } }
 
+        /* 💡 핑크 배경을 없애고 순수 발광 글자로만 큼직하게 출력되는 공지 바 (2단 줄바꿈 지원) */
         #global-notice-bar {
-            display: none; position: absolute; top: 0; left: 0; width: 100%; z-index: 60;
-            background: linear-gradient(90deg, #6c5ce7, #a29bfe); color: #fff; text-align: center;
-            padding: 8px 15px; font-weight: 900; font-size: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            animation: slideDown 0.4s ease-out;
+            display: none; position: absolute; top: 15px; left: 0; width: 100%; z-index: 70;
+            background: transparent; color: #fff; text-align: center;
+            padding: 5px 20px; font-weight: 900; font-size: 20px;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8), 0 0 20px rgba(0, 210, 211, 0.8);
+            line-height: 1.4; pointer-events: none;
         }
 
         #stage-header {
@@ -124,7 +126,6 @@
         .egg-item:active { transform: scale(0.92); }
         .egg-label { background: linear-gradient(135deg, #0984e3, #74b9ff); color: #fff; font-weight: 900; font-size: 18px; padding: 12px 28px; border-radius: 30px; box-shadow: 0 8px 20px rgba(9, 132, 227, 0.4); text-align: center; }
         
-        /* 💡 훔치는 중일 때는 흐려지고, 훔치기 성공 시에는 완전히 사라짐 */
         .egg-item.busy { opacity: 0.45; filter: grayscale(0.5); }
         .egg-item.gone { display: none !important; }
 
@@ -204,12 +205,28 @@
             font-weight: 900 !important;
             text-shadow: 0 0 1px #fff;
         }
+
+        /* 💡 5초 트랩 피격 스턴 화면 오버레이 */
+        #stun-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+            z-index: 99999; flex-direction: column; justify-content: center; align-items: center;
+            color: #ff4757; font-size: 36px; font-weight: 900; text-align: center;
+        }
     </style>
 </head>
 <body>
 
-    <audio id="snd-bg" src="background.mp3" loop preload="auto"></audio>
+    <div id="stun-overlay">
+        <div>🪤 덫에 걸렸습니다!</div>
+        <div style="font-size:24px; color:#fff; margin-top:10px;" id="stun-timer">5초 동안 행동 불가...</div>
+    </div>
+
+    <!-- 💡 낮 교대 BGM 및 신규 효과음 -->
+    <audio id="snd-bg" src="background.mp3" preload="auto"></audio>
+    <audio id="snd-bg2" src="background2.mp3" preload="auto"></audio>
     <audio id="snd-night" src="night.mp3" loop preload="auto"></audio>
+    <audio id="snd-cosmic" src="cosmicegg.mp3" preload="auto"></audio>
+    <audio id="snd-secret" src="secretegg.mp3" preload="auto"></audio>
     <audio id="snd-ocean" src="ocean.mp3" preload="auto"></audio>
     <audio id="snd-crack" src="crack.mp3" preload="auto"></audio>
     <audio id="snd-monster" src="monster.mp3" preload="auto"></audio>
@@ -371,12 +388,13 @@
     </div>
 
     <script>
-        let gameState = { clickPower: 1, money: 10000, inventory: [], equipped: '', pets: [], equippedPets: [], claimedDex: [], isFirstLogin: false };
+        let gameState = { clickPower: 1, money: 10000, inventory: [], equipped: '', pets: [], equippedPets: [], claimedDex: [], installedTrapStage: null, isFirstLogin: false };
         let phase = 'LOBBY'; 
         let currentStageIndex = 0;
         let currentSlotIndex = 0;
         let isSpecialTarget = false;
         let specialTargetType = null;
+        let isChasingEnding = false; // 💡 alert 무한 반복 방지 플래그
         
         let playerProgress = 0;
         let bossProgress = 0;
@@ -391,6 +409,7 @@
 
         let currentStageUsers = [];
         let isServerNight = false;
+        let playedSpecialSoundThisNight = false;
 
         const SHOP_ITEMS = [
             { name: '기본 점핑패드', price: 0, mult: 1 },
@@ -499,26 +518,49 @@
             if (el) { el.pause(); el.currentTime = 0; }
         }
 
+        // 💡 낮 BGM 교대 재생 리스너 설정
+        let currentDayTrack = 1;
+        const bg1 = document.getElementById('snd-bg');
+        const bg2 = document.getElementById('snd-bg2');
+
+        bg1.addEventListener('ended', () => {
+            if (!isServerNight && phase !== 'CHASE_RUN') {
+                currentDayTrack = 2;
+                bg2.currentTime = 0;
+                bg2.play().catch(e => {});
+            }
+        });
+
+        bg2.addEventListener('ended', () => {
+            if (!isServerNight && phase !== 'CHASE_RUN') {
+                currentDayTrack = 1;
+                bg1.currentTime = 0;
+                bg1.play().catch(e => {});
+            }
+        });
+
         function updateMusicState() {
-            const dayBgm = document.getElementById('snd-bg');
             const nightBgm = document.getElementById('snd-night');
 
             if (phase === 'CHASE_RUN') {
-                dayBgm.pause();
+                bg1.pause();
+                bg2.pause();
                 nightBgm.pause();
                 return;
             }
 
             if (isServerNight) {
-                dayBgm.pause();
+                bg1.pause();
+                bg2.pause();
                 if (nightBgm.paused) {
                     nightBgm.currentTime = 0;
                     nightBgm.play().catch(e => {});
                 }
             } else {
                 nightBgm.pause();
-                if (dayBgm.paused) {
-                    dayBgm.play().catch(e => {});
+                const activeBg = currentDayTrack === 1 ? bg1 : bg2;
+                if (activeBg.paused) {
+                    activeBg.play().catch(e => {});
                 }
             }
         }
@@ -624,11 +666,15 @@
                 isServerNight = syncData.isNight;
 
                 if (prevNight !== isServerNight) {
+                    playedSpecialSoundThisNight = false;
                     updateMusicState();
                 }
 
                 const dayEl = document.getElementById('day-timer-text');
                 const nightEl = document.getElementById('night-timer-text');
+                const noticeBar = document.getElementById('global-notice-bar');
+                let noticeLines = [];
+
                 if (isServerNight) {
                     dayEl.innerText = `☀️ 낮 진행: 종료됨`;
                     nightEl.innerText = `🌙 밤 남은 시간: ${syncData.cycleTimer}초`;
@@ -638,17 +684,43 @@
                         alert("🌙 밤이 찾아왔습니다! 모든 탐험이 중단되고 로비로 귀환합니다.");
                         returnToLobby();
                     }
+
+                    // 💡 밤 3초 이하 카운트다운 및 스페셜 알 효과음/2단 텍스트 출력
+                    if (syncData.cycleTimer <= 3 && syncData.cycleTimer > 0) {
+                        noticeLines.push(`🌙 낮까지 ${syncData.cycleTimer}... (모든 알 리셋 완료)`);
+
+                        if (syncData.upcomingSpecialType === 'cosmic') {
+                            noticeLines.push(`🌌 잠시 후 코스믹 알이 출현합니다!`);
+                            if (!playedSpecialSoundThisNight) {
+                                playedSpecialSoundThisNight = true;
+                                const cs = document.getElementById('snd-cosmic');
+                                cs.currentTime = 0; cs.play().catch(e=>{});
+                            }
+                        } else if (syncData.upcomingSpecialType === 'secret') {
+                            noticeLines.push(`🌑 잠시 후 전설의 시크릿 알이 출현합니다!`);
+                            if (!playedSpecialSoundThisNight) {
+                                playedSpecialSoundThisNight = true;
+                                const ss = document.getElementById('snd-secret');
+                                ss.currentTime = 0; ss.play().catch(e=>{});
+                            }
+                        }
+                    }
                 } else {
                     const m = Math.floor(syncData.cycleTimer / 60).toString().padStart(2, '0');
                     const s = (syncData.cycleTimer % 60).toString().padStart(2, '0');
                     dayEl.innerText = `☀️ 낮 남은 시간: ${m}:${s}`;
                     nightEl.innerText = `🌙 밤 상태: 낮 진행 중`;
                     nightEl.style.color = '#2c3e50';
+
+                    if (syncData.globalNotice) noticeLines.push(syncData.globalNotice);
                 }
 
-                const noticeBar = document.getElementById('global-notice-bar');
-                if (syncData.globalNotice) {
-                    noticeBar.innerText = syncData.globalNotice;
+                if (syncData.trapNotice) {
+                    noticeLines.push(syncData.trapNotice);
+                }
+
+                if (noticeLines.length > 0) {
+                    noticeBar.innerHTML = noticeLines.join('<br>');
                     noticeBar.style.display = 'block';
                 } else {
                     noticeBar.style.display = 'none';
@@ -674,7 +746,6 @@
                         if (isCosmic) labelEl.classList.add('cosmic-egg');
                         if (isSecret) labelEl.classList.add('secret-egg');
 
-                        // 💡 훔치기 성공 시에만 완전히 사라짐(gone), 훔치는 중일 땐 점유(busy)
                         if (slot && slot.isGone) {
                             slotEl.classList.add('gone');
                         } else if (slot && slot.busyBy) {
@@ -749,6 +820,7 @@
             stopUpgradeAuto();
             phase = 'LOBBY';
             clearInterval(chaseTimer);
+            isChasingEnding = false;
 
             updateMusicState();
 
@@ -844,6 +916,25 @@
             header.style.display = 'flex';
         }
 
+        // 💡 5초 스턴 트리거
+        function triggerTrapStun() {
+            returnToLobby();
+            const overlay = document.getElementById('stun-overlay');
+            const timerEl = document.getElementById('stun-timer');
+            overlay.style.display = 'flex';
+            let left = 5;
+            timerEl.innerText = `${left}초 동안 행동 불가...`;
+            const sInt = setInterval(() => {
+                left--;
+                if (left <= 0) {
+                    clearInterval(sInt);
+                    overlay.style.display = 'none';
+                } else {
+                    timerEl.innerText = `${left}초 동안 행동 불가...`;
+                }
+            }, 1000);
+        }
+
         async function stealEgg(slotIndex) {
             if (phase !== 'MAP_IDLE') return;
             if (isServerNight) {
@@ -860,12 +951,18 @@
             });
             const data = await res.json();
             if (!data.success) {
+                if (data.trapped) {
+                    alert(data.message);
+                    triggerTrapStun();
+                    return;
+                }
                 alert(data.message);
                 return;
             }
 
             currentSlotIndex = slotIndex;
             targetEscapeClicks = data.targetEscapeClicks;
+            isChasingEnding = false;
 
             const labelEl = document.getElementById(`egg-label-${slotIndex}`);
             isSpecialTarget = false;
@@ -878,7 +975,8 @@
                 specialTargetType = 'secret';
             }
 
-            document.getElementById('snd-bg').pause();
+            bg1.pause();
+            bg2.pause();
             document.getElementById('snd-night').pause();
             playPooledSound('eggsteal');
 
@@ -908,6 +1006,8 @@
             chaseTimer = setInterval(async () => {
                 bossProgress += (stage.bossSpeed / 10);
                 if (playerProgress - bossProgress <= 0) {
+                    if (isChasingEnding) return;
+                    isChasingEnding = true;
                     clearInterval(chaseTimer);
                     stopAudio(`snd-boss-${currentStageIndex}`);
 
@@ -950,6 +1050,8 @@
             else if (phase === 'CHASE_RUN') {
                 updateChaseUI();
                 if (playerProgress >= targetEscapeClicks) {
+                    if (isChasingEnding) return;
+                    isChasingEnding = true;
                     clearInterval(chaseTimer);
                     stopAudio(`snd-boss-${currentStageIndex}`);
                     phase = 'WAITING_SERVER'; 
@@ -1179,6 +1281,46 @@
             renderInventory();
         }
 
+        // 💡 트랩 설치 대화상자
+        async function openTrapInstallDialog() {
+            playClickSound();
+            const mapNames = STAGES.map((s, idx) => `${idx + 1}. ${s.name}`).join('\n');
+            const choice = prompt(`트랩을 설치할 맵의 번호를 입력해주세요:\n${mapNames}`);
+            if (!choice) return;
+            const sIdx = parseInt(choice) - 1;
+            if (isNaN(sIdx) || sIdx < 0 || sIdx >= STAGES.length) {
+                alert("올바른 맵 번호를 입력해주세요.");
+                return;
+            }
+
+            const res = await fetch('/api/trap_install', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stageIndex: sIdx })
+            });
+            const data = await res.json();
+            if (data.success) {
+                gameState.inventory = data.inventory;
+                gameState.installedTrapStage = data.installedTrapStage;
+                renderInventory();
+                alert(`[${STAGES[sIdx].name}]에 트랩을 설치했습니다! 알을 훔치려던 유저가 10% 확률로 덫에 걸립니다.`);
+            } else alert(data.message);
+        }
+
+        // 💡 트랩 회수 함수
+        async function recallTrap() {
+            playClickSound();
+            const res = await fetch('/api/trap_recall', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            if (data.success) {
+                gameState.inventory = data.inventory;
+                gameState.installedTrapStage = data.installedTrapStage;
+                renderInventory();
+                alert("설치했던 트랩을 안전하게 회수했습니다.");
+            } else alert(data.message);
+        }
+
         function renderInventory() {
             const list = document.getElementById('inventory-list');
             list.innerHTML = '';
@@ -1197,6 +1339,24 @@
                         `;
                     }
                 });
+
+                // 💡 트랩 아이템 카드 렌더링 (보유 중이거나 이미 설치된 경우 표시)
+                const hasTrap = gameState.inventory.includes('트랩');
+                const isTrapInstalled = gameState.installedTrapStage !== null && gameState.installedTrapStage !== undefined;
+
+                if (hasTrap || isTrapInstalled) {
+                    list.innerHTML += `
+                        <div class="inv-item" style="border: 2px solid #e67e22; background: rgba(230, 126, 34, 0.1);">
+                            <span style="font-size:32px;">🪤</span>
+                            <h4 style="font-size:15px; color:#2d3436;">트랩</h4>
+                            <p style="color:#636e72; font-size:10px; margin-top:2px;">${isTrapInstalled ? STAGES[gameState.installedTrapStage].name + ' 설치됨' : '도둑 포획용 덫'}</p>
+                            ${isTrapInstalled ? 
+                                `<button style="background:#e74c3c;" onclick="recallTrap()">회수</button>` : 
+                                `<button style="background:#e67e22;" onclick="openTrapInstallDialog()">사용</button>`
+                            }
+                        </div>
+                    `;
+                }
             }
 
             if (currentInvTab === 'all' || currentInvTab === 'egg') {
