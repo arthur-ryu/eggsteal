@@ -99,22 +99,20 @@ const stagesState = STAGES.map(() => ({
 const userLocations = new Map();
 const onlineUsers = new Map();
 
-// 낮/밤 주기 및 스페셜 알 관리
 let isNight = false;
-let cycleTimer = 300; // 낮 기본 300초
+let cycleTimer = 300;
 let nightCount = 0;
 let nextCosmicTarget = 7 + Math.floor(Math.random() * 4);
 let nextSecretTarget = 18 + Math.floor(Math.random() * 5);
 
-let globalSpecialEgg = null; // { type, stageIndex, slotIndex, eggName }
+let globalSpecialEgg = null;
 let upcomingSpecialType = null;
 let upcomingSpecialStage = null;
 let globalNotice = "";
 let trapNotice = "";
 
-// 💡 어드민 글로벌 활성 버프 및 강화 관리
-const activeBuffs = {}; // key: { mult: 2|4, timer: 300 }
-let adminSuperUpgrade = false; // 어드민 강화 활성화 여부
+const activeBuffs = {};
+let adminSuperUpgrade = false;
 
 function getBuffMult(type) {
     return (activeBuffs[type] && activeBuffs[type].timer > 0) ? activeBuffs[type].mult : 1;
@@ -122,15 +120,14 @@ function getBuffMult(type) {
 
 function getDayDuration() {
     const halfMult = getBuffMult('dayHalf');
-    if (halfMult === 4) return 75; // 4배 낮절반 (1분 15초)
-    if (halfMult === 2) return 150; // 2배 낮절반 (2분 30초)
-    return 300; // 기본 5분
+    if (halfMult === 4) return 75;
+    if (halfMult === 2) return 150;
+    return 300;
 }
 
 setInterval(() => {
     cycleTimer--;
 
-    // 버프 타이머 차감
     for (const key in activeBuffs) {
         if (activeBuffs[key].timer > 0) {
             activeBuffs[key].timer--;
@@ -138,7 +135,6 @@ setInterval(() => {
         }
     }
 
-    // 밤 3초 전 스페셜 알 예고
     if (isNight && cycleTimer === 3) {
         const lucky = getBuffMult('lucky');
         const cosmicThreshold = lucky > 1 ? Math.floor(nextCosmicTarget / lucky) : nextCosmicTarget;
@@ -156,11 +152,10 @@ setInterval(() => {
     if (cycleTimer <= 0) {
         if (!isNight) {
             isNight = true;
-            cycleTimer = 13; // 밤 13초
+            cycleTimer = 13;
             nightCount++;
             upcomingSpecialType = null;
 
-            // 5개 슬롯 전체 부활 및 초기화
             stagesState.forEach(st => {
                 st.slots = Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false }));
             });
@@ -306,13 +301,15 @@ app.post('/api/sync_stage', (req, res) => {
     });
 });
 
-// 💡 관리자 전용 API군 ('작자' 계정 전용 검증)
+// 💡 관리자 메시지 전송 (2초 뒤 자동 소멸)
 app.post('/api/admin/broadcast', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
     const { text } = req.body;
     globalNotice = `📢 [관리자 작자]: ${text}`;
-    setTimeout(() => { if (globalNotice.includes(text)) globalNotice = ""; }, 7000);
+    setTimeout(() => { 
+        if (globalNotice === `📢 [관리자 작자]: ${text}`) globalNotice = ""; 
+    }, 2000);
     res.json({ success: true });
 });
 
@@ -330,7 +327,7 @@ app.post('/api/admin/spawn_special', (req, res) => {
 app.post('/api/admin/trigger_buff', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
-    const { buffType, mult } = req.body; // buffType: lucky, money, click, dayHalf / mult: 2, 4
+    const { buffType, mult } = req.body;
     activeBuffs[buffType] = { mult: parseInt(mult), timer: 300 };
     if (buffType === 'dayHalf' && !isNight) {
         cycleTimer = Math.min(cycleTimer, getDayDuration());
@@ -345,7 +342,6 @@ app.post('/api/admin/toggle_super_upgrade', (req, res) => {
     res.json({ success: true, adminSuperUpgrade });
 });
 
-// 💡 0.3초당 클릭 파워 증가 (클라이언트와 완벽 일치)
 app.post('/api/upgrade_step', async (req, res) => {
     const username = authenticateUser(req);
     if (!username) return res.json({ success: false });
@@ -430,7 +426,6 @@ app.post('/api/start_steal', (req, res) => {
     res.json({ success: true, savedDistance, targetEscapeClicks: remainingClicks });
 });
 
-// 💡 로비 복귀 또는 연결 종료 시 슬롯 점유 안전 해제
 app.post('/api/cancel_steal', (req, res) => {
     const username = authenticateUser(req);
     const { stageIndex, slotIndex } = req.body;
@@ -456,7 +451,6 @@ app.post('/api/fail_steal', (req, res) => {
     res.json({ success: true });
 });
 
-// 💡 초당 자금 정산 (돈 2배/4배 버프 실시간 곱연산)
 app.post('/api/tick', async (req, res) => {
     const username = authenticateUser(req);
     if (!username) return res.json({ success: false });
@@ -492,7 +486,6 @@ app.get('/api/online', (req, res) => {
     res.json({ success: true, users: activeUsers });
 });
 
-// 💡 해당 맵 전용 코스믹/시크릿 알 부화
 app.post('/api/hatch', async (req, res) => {
     const username = authenticateUser(req);
     const { eggName } = req.body;
@@ -509,7 +502,6 @@ app.post('/api/hatch', async (req, res) => {
     let baseMps = 10;
     let actualSourceEgg = eggName;
 
-    // 💡 맵별 코스믹/시크릿 알 판별: 해당 맵의 풀에서 그 등급에 해당하는 동물만 추출
     if (eggName.includes('코스믹알') || eggName.includes('시크릿알')) {
         const isCosmic = eggName.includes('코스믹알');
         const stagePrefix = eggName.replace('코스믹알', '').replace('시크릿알', '');
