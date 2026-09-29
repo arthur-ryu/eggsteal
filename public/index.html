@@ -345,7 +345,6 @@
         </div>
     </div>
 
-    <!-- 관리자 모달 -->
     <div id="admin-modal" class="modal">
         <div class="modal-content" style="max-width: 550px;">
             <div class="modal-header"><span>🛠️ 관리자 제어 탭 (작자 전용)</span><button class="close-btn" onclick="closeModal('admin-modal')">✕</button></div>
@@ -1023,7 +1022,10 @@
             document.getElementById('ingame-ui').style.display = 'block';
             document.getElementById('eggs-container').style.display = 'none';
             document.getElementById('chase-ui').style.display = 'none';
-            document.getElementById('running-overlay').style.display = 'none';
+            
+            const runOverlay = document.getElementById('running-overlay');
+            runOverlay.style.display = 'none';
+            runOverlay.style.pointerEvents = 'auto'; // 리셋
             
             document.getElementById('online-users-btn').style.display = 'block';
             document.getElementById('lobby-return-btn').style.display = 'none';
@@ -1069,7 +1071,9 @@
             bgLayer.style.backgroundImage = "url('run.png')";
             bgLayer.style.transform = "scale(1)";
 
-            document.getElementById('running-overlay').style.display = 'block';
+            const runOverlay = document.getElementById('running-overlay');
+            runOverlay.style.display = 'block';
+            runOverlay.style.pointerEvents = 'auto';
             
             const titleEl = document.getElementById('main-title');
             titleEl.style.background = "none";
@@ -1169,7 +1173,11 @@
             document.getElementById('stage-header').style.display = 'none';
             document.getElementById('bg-layer').style.backgroundImage = "url('run.png')";
             document.getElementById('bg-layer').style.transform = "scale(1)";
-            document.getElementById('running-overlay').style.display = 'block';
+            
+            const runOverlay = document.getElementById('running-overlay');
+            runOverlay.style.display = 'block';
+            runOverlay.style.pointerEvents = 'auto';
+
             document.getElementById('chase-ui').style.display = 'block';
             
             const stage = STAGES[currentStageIndex];
@@ -1179,12 +1187,16 @@
             document.getElementById('chase-msg').innerText = `알 주인으로부터 도망치세요!`;
             updateChaseUI();
 
+            // 💡 보스 추격 타이머 - 잡히는 즉시 락 & 오버레이 클릭 차단
             chaseTimer = setInterval(async () => {
                 bossProgress += (stage.bossSpeed / 10);
                 if (playerProgress - bossProgress <= 0) {
                     if (isChasingEnding) return;
                     isChasingEnding = true;
                     clearInterval(chaseTimer);
+
+                    // 대기열 클릭 차단
+                    runOverlay.style.pointerEvents = 'none';
                     stopAudio(`snd-boss-${currentStageIndex}`);
 
                     await fetch('/api/fail_steal', {
@@ -1207,9 +1219,10 @@
             document.getElementById('bg-layer').style.transform = `scale(${1 + zoom})`;
         }
 
+        // 💡 연타 도중 잡혔을 때 alert 무한 반복 완전 차단
         async function handleRunClick(e) {
             if (phase !== 'MAP_RUN' && phase !== 'CHASE_RUN') return;
-            if (isChasingEnding) return;
+            if (isChasingEnding) return; // 락 상태 시 일체 무시
             playRunClickSound();
 
             let clickBuffMult = (liveBuffs['click'] && liveBuffs['click'].timer > 0) ? liveBuffs['click'].mult : 1;
@@ -1231,6 +1244,9 @@
                     if (isChasingEnding) return;
                     isChasingEnding = true;
                     clearInterval(chaseTimer);
+
+                    // 대기열 클릭 차단
+                    document.getElementById('running-overlay').style.pointerEvents = 'none';
                     stopAudio(`snd-boss-${currentStageIndex}`);
                     phase = 'WAITING_SERVER'; 
                     playPooledSound('complete');
