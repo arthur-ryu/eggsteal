@@ -111,6 +111,9 @@ let upcomingSpecialStage = null;
 let globalNotice = "";
 let trapNotice = "";
 
+// 💡 전역 사운드 브로드캐스트 이벤트 관리
+let lastSoundEvent = { id: 0, sound: null };
+
 const activeBuffs = {};
 let adminSuperUpgrade = false;
 
@@ -297,16 +300,18 @@ app.post('/api/sync_stage', (req, res) => {
         usersInStage,
         activeBuffs,
         adminSuperUpgrade,
+        lastSoundEvent, // 💡 전역 사운드 트리거 전달
         slots: currentStageState ? currentStageState.slots : []
     });
 });
 
-// 💡 관리자 메시지 전송 (4초 뒤 자동 소멸)
+// 💡 관리자 메시지 전송 (전체 브로드캐스트 + 4초 뒤 자동 소멸)
 app.post('/api/admin/broadcast', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
     const { text } = req.body;
     globalNotice = `📢 [관리자 작자]: ${text}`;
+    lastSoundEvent = { id: Date.now(), sound: 'adminchat' }; // 전원 효과음 브로드캐스트
     setTimeout(() => { 
         if (globalNotice === `📢 [관리자 작자]: ${text}`) globalNotice = ""; 
     }, 4000);
@@ -321,21 +326,30 @@ app.post('/api/admin/spawn_special', (req, res) => {
     const eggName = `${STAGES[stageIndex].name.split(' ')[1]}${type === 'cosmic' ? '코스믹알' : '시크릿알'}`;
     globalSpecialEgg = { type, stageIndex, slotIndex: slotIdx, eggName };
     globalNotice = `📢 작자가 [${STAGES[stageIndex].name}]에 ${type === 'cosmic' ? '코스믹 알' : '시크릿 알'}을 생성했습니다!`;
+    lastSoundEvent = { id: Date.now(), sound: type === 'cosmic' ? 'cosmic' : 'secret' }; // 전원 효과음 브로드캐스트
     res.json({ success: true, eggName, stageIndex, slotIndex: slotIdx });
 });
 
+// 💡 글로벌 버프 시간 누적(더하기) 시스템
 app.post('/api/admin/trigger_buff', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
     const { buffType, mult } = req.body;
-    activeBuffs[buffType] = { mult: parseInt(mult), timer: 300 };
+
+    const currentTimer = (activeBuffs[buffType] && activeBuffs[buffType].timer > 0) ? activeBuffs[buffType].timer : 0;
+    activeBuffs[buffType] = { 
+        mult: parseInt(mult), 
+        timer: currentTimer + 300 // 💡 누를 때마다 +300초(5분)씩 계속 더해짐
+    };
+
     if (buffType === 'dayHalf' && !isNight) {
         cycleTimer = Math.min(cycleTimer, getDayDuration());
     }
+
+    lastSoundEvent = { id: Date.now(), sound: 'admineffect' }; // 전원 효과음 브로드캐스트
     res.json({ success: true, activeBuffs });
 });
 
-// 💡 관리자 강화 토글 & 생성 시 4초간 전체 공지 브로드캐스팅
 app.post('/api/admin/toggle_super_upgrade', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
@@ -343,6 +357,7 @@ app.post('/api/admin/toggle_super_upgrade', (req, res) => {
 
     if (adminSuperUpgrade) {
         globalNotice = `📢 작자가 관리자 강화를 생성했습니다!`;
+        lastSoundEvent = { id: Date.now(), sound: 'admineffect' }; // 전원 효과음 브로드캐스트
         setTimeout(() => {
             if (globalNotice === `📢 작자가 관리자 강화를 생성했습니다!`) globalNotice = "";
         }, 4000);
