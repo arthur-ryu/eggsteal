@@ -301,7 +301,7 @@ app.post('/api/sync_stage', (req, res) => {
     });
 });
 
-// 💡 관리자 메시지 전송 (2초 뒤 자동 소멸)
+// 💡 관리자 메시지 전송 (4초 뒤 자동 소멸)
 app.post('/api/admin/broadcast', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
@@ -309,7 +309,7 @@ app.post('/api/admin/broadcast', (req, res) => {
     globalNotice = `📢 [관리자 작자]: ${text}`;
     setTimeout(() => { 
         if (globalNotice === `📢 [관리자 작자]: ${text}`) globalNotice = ""; 
-    }, 2000);
+    }, 4000);
     res.json({ success: true });
 });
 
@@ -335,10 +335,19 @@ app.post('/api/admin/trigger_buff', (req, res) => {
     res.json({ success: true, activeBuffs });
 });
 
+// 💡 관리자 강화 토글 & 생성 시 4초간 전체 공지 브로드캐스팅
 app.post('/api/admin/toggle_super_upgrade', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
     adminSuperUpgrade = !adminSuperUpgrade;
+
+    if (adminSuperUpgrade) {
+        globalNotice = `📢 작자가 관리자 강화를 생성했습니다!`;
+        setTimeout(() => {
+            if (globalNotice === `📢 작자가 관리자 강화를 생성했습니다!`) globalNotice = "";
+        }, 4000);
+    }
+
     res.json({ success: true, adminSuperUpgrade });
 });
 
