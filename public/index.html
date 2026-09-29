@@ -227,7 +227,6 @@
         <div style="font-size:24px; color:#fff; margin-top:10px;" id="stun-timer">5초 동안 행동 불가...</div>
     </div>
 
-    <!-- 💡 신규 효과음 admineffect.mp3 추가 -->
     <audio id="snd-bg" src="background.mp3" preload="auto"></audio>
     <audio id="snd-bg2" src="background2.mp3" preload="auto"></audio>
     <audio id="snd-night" src="night.mp3" loop preload="auto"></audio>
@@ -448,11 +447,11 @@
         let currentSlotIndex = 0;
         let isSpecialTarget = false;
         let specialTargetType = null;
-        let isChasingEnding = false; // 💡 alert 중복 방지 락
+        let isChasingEnding = false;
         let titleClickCount = 0;
         let isUserAdmin = false;
         let adminSuperUpgradeActive = false;
-        let isAdminUnlocked = false; // 💡 비밀번호 1회 인증 후 기억 플래그
+        let isAdminUnlocked = false;
         
         let playerProgress = 0;
         let bossProgress = 0;
@@ -623,11 +622,9 @@
             }
         }
 
-        // 💡 타이틀 클릭 시 관리자 탭 오픈 로직 (비밀번호 인증 및 1회 인증 후 단일 클릭 오픈)
         function handleTitleClick() {
             if (gameState.username !== '작자') return;
 
-            // 이미 인증을 완료한 상태면 1번만 눌러도 즉시 오픈
             if (isAdminUnlocked) {
                 openModal('admin-modal');
                 return;
@@ -896,7 +893,6 @@
             } else alert(data.message);
         }
 
-        // 💡 버프 실행 시 admineffect.mp3 재생
         async function triggerBuffAdmin(buffType, mult) {
             const res = await fetch('/api/admin/trigger_buff', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1142,7 +1138,7 @@
 
             currentSlotIndex = slotIndex;
             targetEscapeClicks = data.targetEscapeClicks;
-            isChasingEnding = false; // 💡 시작 시 락 해제
+            isChasingEnding = false;
 
             const labelEl = document.getElementById(`egg-label-${slotIndex}`);
             isSpecialTarget = false;
@@ -1183,7 +1179,6 @@
             document.getElementById('chase-msg').innerText = `알 주인으로부터 도망치세요!`;
             updateChaseUI();
 
-            // 💡 보스 추격 타이머 - 잡히는 즉시 락을 걸어 1회만 처리
             chaseTimer = setInterval(async () => {
                 bossProgress += (stage.bossSpeed / 10);
                 if (playerProgress - bossProgress <= 0) {
@@ -1212,10 +1207,9 @@
             document.getElementById('bg-layer').style.transform = `scale(${1 + zoom})`;
         }
 
-        // 💡 연타 중 보스에게 잡혔을 때의 alert 중복 방지 (isChasingEnding 검사)
         async function handleRunClick(e) {
             if (phase !== 'MAP_RUN' && phase !== 'CHASE_RUN') return;
-            if (isChasingEnding) return; // 💡 락 걸리면 모든 연타 무시
+            if (isChasingEnding) return;
             playRunClickSound();
 
             let clickBuffMult = (liveBuffs['click'] && liveBuffs['click'].timer > 0) ? liveBuffs['click'].mult : 1;
