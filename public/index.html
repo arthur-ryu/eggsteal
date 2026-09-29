@@ -324,7 +324,6 @@
                 <div class="sq-btn btn-upgrade" onclick="openModal('upgrade-modal'); renderUpgrade();"><span>⚡</span>강화</div>
             </div>
 
-            <!-- 5개의 알 둥지 -->
             <div id="eggs-container">
                 <div class="egg-item" id="egg-slot-0" onclick="stealEgg(0);"><div class="egg-label" id="egg-label-0">훔치기</div></div>
                 <div class="egg-item" id="egg-slot-1" onclick="stealEgg(1);"><div class="egg-label" id="egg-label-1">훔치기</div></div>
@@ -345,6 +344,7 @@
         </div>
     </div>
 
+    <!-- 관리자 모달 -->
     <div id="admin-modal" class="modal">
         <div class="modal-content" style="max-width: 550px;">
             <div class="modal-header"><span>🛠️ 관리자 제어 탭 (작자 전용)</span><button class="close-btn" onclick="closeModal('admin-modal')">✕</button></div>
@@ -369,7 +369,7 @@
                     </div>
                 </div>
                 <div class="admin-section">
-                    <h5>⚡ 글로벌 버프 5분 활성화</h5>
+                    <h5>⚡ 글로벌 버프 5분 활성화 (누적 가능)</h5>
                     <div class="admin-row">
                         <button class="admin-btn" style="background:#2ed573;" onclick="triggerBuffAdmin('lucky', 2)">🍀 행운 2배</button>
                         <button class="admin-btn" style="background:#20bf6b;" onclick="triggerBuffAdmin('lucky', 4)">🍀 행운 4배</button>
@@ -451,6 +451,7 @@
         let isUserAdmin = false;
         let adminSuperUpgradeActive = false;
         let isAdminUnlocked = false;
+        let clientLastSoundId = 0; // 💡 서버 동기화 사운드 추적용
         
         let playerProgress = 0;
         let bossProgress = 0;
@@ -747,6 +748,22 @@
                 adminSuperUpgradeActive = syncData.adminSuperUpgrade || false;
                 updateAdminSuperBtnUI();
 
+                // 💡 전역 관리자 사운드 브로드캐스트 감지 및 재생 (모든 접속 유저 공통)
+                if (syncData.lastSoundEvent && syncData.lastSoundEvent.id > clientLastSoundId) {
+                    clientLastSoundId = syncData.lastSoundEvent.id;
+                    const sndType = syncData.lastSoundEvent.sound;
+                    let targetSnd = null;
+                    if (sndType === 'adminchat') targetSnd = document.getElementById('snd-adminchat');
+                    else if (sndType === 'cosmic') targetSnd = document.getElementById('snd-cosmic');
+                    else if (sndType === 'secret') targetSnd = document.getElementById('snd-secret');
+                    else if (sndType === 'admineffect') targetSnd = document.getElementById('snd-admineffect');
+
+                    if (targetSnd) {
+                        targetSnd.currentTime = 0;
+                        targetSnd.play().catch(e => {});
+                    }
+                }
+
                 if (prevNight !== isServerNight) {
                     playedSpecialSoundThisNight = false;
                     updateMusicState();
@@ -871,8 +888,6 @@
             const data = await res.json();
             if (data.success) {
                 input.value = '';
-                const ac = document.getElementById('snd-adminchat');
-                ac.currentTime = 0; ac.play().catch(e=>{});
                 closeModal('admin-modal');
             } else alert(data.message);
         }
@@ -885,8 +900,6 @@
             });
             const data = await res.json();
             if (data.success) {
-                const snd = type === 'cosmic' ? document.getElementById('snd-cosmic') : document.getElementById('snd-secret');
-                snd.currentTime = 0; snd.play().catch(e=>{});
                 alert(`${STAGES[sIdx].name}에 ${data.eggName}이 생성되었습니다!`);
                 closeModal('admin-modal');
             } else alert(data.message);
@@ -899,9 +912,7 @@
             });
             const data = await res.json();
             if (data.success) {
-                const fx = document.getElementById('snd-admineffect');
-                fx.currentTime = 0; fx.play().catch(e=>{});
-                alert(`버프가 5분 동안 활성화되었습니다!`);
+                alert(`버프 시간이 5분 누적 추가되었습니다!`);
             } else alert(data.message);
         }
 
@@ -1025,7 +1036,7 @@
             
             const runOverlay = document.getElementById('running-overlay');
             runOverlay.style.display = 'none';
-            runOverlay.style.pointerEvents = 'auto'; // 리셋
+            runOverlay.style.pointerEvents = 'auto';
             
             document.getElementById('online-users-btn').style.display = 'block';
             document.getElementById('lobby-return-btn').style.display = 'none';
@@ -1115,6 +1126,12 @@
             }, 1000);
         }
 
+        function blockAllInputs(e) {
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+            e.preventDefault();
+        }
+
         async function stealEgg(slotIndex) {
             if (phase !== 'MAP_IDLE') return;
             if (isServerNight) {
@@ -1143,6 +1160,8 @@
             currentSlotIndex = slotIndex;
             targetEscapeClicks = data.targetEscapeClicks;
             isChasingEnding = false;
+            window.removeEventListener('click', blockAllInputs, true);
+            window.removeEventListener('touchstart', blockAllInputs, true);
 
             const labelEl = document.getElementById(`egg-label-${slotIndex}`);
             isSpecialTarget = false;
@@ -1187,7 +1206,6 @@
             document.getElementById('chase-msg').innerText = `알 주인으로부터 도망치세요!`;
             updateChaseUI();
 
-            // 💡 보스 추격 타이머 - 잡히는 즉시 락 & 오버레이 클릭 차단
             chaseTimer = setInterval(async () => {
                 bossProgress += (stage.bossSpeed / 10);
                 if (playerProgress - bossProgress <= 0) {
@@ -1195,8 +1213,9 @@
                     isChasingEnding = true;
                     clearInterval(chaseTimer);
 
-                    // 대기열 클릭 차단
-                    runOverlay.style.pointerEvents = 'none';
+                    window.addEventListener('click', blockAllInputs, true);
+                    window.addEventListener('touchstart', blockAllInputs, true);
+                    runOverlay.style.display = 'none';
                     stopAudio(`snd-boss-${currentStageIndex}`);
 
                     await fetch('/api/fail_steal', {
@@ -1204,8 +1223,12 @@
                         body: JSON.stringify({ stageIndex: currentStageIndex, slotIndex: currentSlotIndex, progressMade: playerProgress })
                     });
 
-                    alert(`앗! ${stage.boss}에게 잡혔습니다...\n이전까지 도망친 거리는 다음 사람을 위해 남겨두었습니다!`);
-                    returnToLobby();
+                    setTimeout(() => {
+                        alert(`앗! ${stage.boss}에게 잡혔습니다...\n이전까지 도망친 거리는 다음 사람을 위해 남겨두었습니다!`);
+                        window.removeEventListener('click', blockAllInputs, true);
+                        window.removeEventListener('touchstart', blockAllInputs, true);
+                        returnToLobby();
+                    }, 50);
                 } else updateChaseUI();
             }, 100);
         }
@@ -1219,10 +1242,9 @@
             document.getElementById('bg-layer').style.transform = `scale(${1 + zoom})`;
         }
 
-        // 💡 연타 도중 잡혔을 때 alert 무한 반복 완전 차단
         async function handleRunClick(e) {
             if (phase !== 'MAP_RUN' && phase !== 'CHASE_RUN') return;
-            if (isChasingEnding) return; // 락 상태 시 일체 무시
+            if (isChasingEnding) return;
             playRunClickSound();
 
             let clickBuffMult = (liveBuffs['click'] && liveBuffs['click'].timer > 0) ? liveBuffs['click'].mult : 1;
@@ -1245,8 +1267,10 @@
                     isChasingEnding = true;
                     clearInterval(chaseTimer);
 
-                    // 대기열 클릭 차단
-                    document.getElementById('running-overlay').style.pointerEvents = 'none';
+                    window.addEventListener('click', blockAllInputs, true);
+                    window.addEventListener('touchstart', blockAllInputs, true);
+                    document.getElementById('running-overlay').style.display = 'none';
+
                     stopAudio(`snd-boss-${currentStageIndex}`);
                     phase = 'WAITING_SERVER'; 
                     playPooledSound('complete');
@@ -1262,14 +1286,18 @@
                     });
                     const data = await res.json();
                     
-                    if (data.success) {
-                        gameState.inventory = data.inventory;
-                        alert(`탈출 성공!!! 🎉 [${data.eggName}] 획득!`);
-                        returnToLobby();
-                    } else {
-                        alert(data.message || "탈출 실패!");
-                        returnToLobby();
-                    }
+                    setTimeout(() => {
+                        window.removeEventListener('click', blockAllInputs, true);
+                        window.removeEventListener('touchstart', blockAllInputs, true);
+                        if (data.success) {
+                            gameState.inventory = data.inventory;
+                            alert(`탈출 성공!!! 🎉 [${data.eggName}] 획득!`);
+                            returnToLobby();
+                        } else {
+                            alert(data.message || "탈출 실패!");
+                            returnToLobby();
+                        }
+                    }, 50);
                 }
             }
         }
