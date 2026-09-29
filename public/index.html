@@ -46,7 +46,6 @@
         }
         @keyframes shine { to { background-position: 200% center; } }
 
-        /* 💡 핑크 배경 없는 깔끔한 발광 텍스트 공지 */
         #global-notice-bar {
             display: none; position: absolute; top: 15px; left: 0; width: 100%; z-index: 70;
             background: transparent; color: #fff; text-align: center;
@@ -67,7 +66,6 @@
         #stage-user-count { font-size: 14px; font-weight: bold; color: #0984e3; background: #e8f4fd; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 1px solid #74b9ff; }
         #stage-user-count:hover { background: #0984e3; color: #fff; }
 
-        /* 💡 낮/밤 및 상단 활성 버프 표시 위젯 */
         #cycle-status-widget {
             position: absolute; bottom: 20px; right: 20px; z-index: 45;
             background: rgba(255, 255, 255, 0.92); padding: 12px 18px; border-radius: 16px;
@@ -215,7 +213,6 @@
             color: #ff4757; font-size: 36px; font-weight: 900; text-align: center;
         }
 
-        /* 💡 관리자 모달 스타일 */
         .admin-section { margin-bottom: 12px; padding: 10px; background: #f1f2f6; border-radius: 12px; }
         .admin-section h5 { font-size: 14px; font-weight: 900; margin-bottom: 6px; color: #2d3436; }
         .admin-row { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -230,10 +227,12 @@
         <div style="font-size:24px; color:#fff; margin-top:10px;" id="stun-timer">5초 동안 행동 불가...</div>
     </div>
 
+    <!-- 💡 신규 효과음 admineffect.mp3 추가 -->
     <audio id="snd-bg" src="background.mp3" preload="auto"></audio>
     <audio id="snd-bg2" src="background2.mp3" preload="auto"></audio>
     <audio id="snd-night" src="night.mp3" loop preload="auto"></audio>
     <audio id="snd-adminchat" src="adminchat.mp3" preload="auto"></audio>
+    <audio id="snd-admineffect" src="admineffect.mp3" preload="auto"></audio>
     <audio id="snd-cosmic" src="cosmicegg.mp3" preload="auto"></audio>
     <audio id="snd-secret" src="secretegg.mp3" preload="auto"></audio>
     <audio id="snd-ocean" src="ocean.mp3" preload="auto"></audio>
@@ -347,7 +346,7 @@
         </div>
     </div>
 
-    <!-- 💡 관리자 전용 모달 -->
+    <!-- 관리자 모달 -->
     <div id="admin-modal" class="modal">
         <div class="modal-content" style="max-width: 550px;">
             <div class="modal-header"><span>🛠️ 관리자 제어 탭 (작자 전용)</span><button class="close-btn" onclick="closeModal('admin-modal')">✕</button></div>
@@ -449,10 +448,11 @@
         let currentSlotIndex = 0;
         let isSpecialTarget = false;
         let specialTargetType = null;
-        let isChasingEnding = false; // 💡 alert 1회 보장 락
+        let isChasingEnding = false; // 💡 alert 중복 방지 락
         let titleClickCount = 0;
         let isUserAdmin = false;
         let adminSuperUpgradeActive = false;
+        let isAdminUnlocked = false; // 💡 비밀번호 1회 인증 후 기억 플래그
         
         let playerProgress = 0;
         let bossProgress = 0;
@@ -577,7 +577,6 @@
             if (el) { el.pause(); el.currentTime = 0; }
         }
 
-        // 낮 BGM 교대 루프 리스너
         let currentDayTrack = 1;
         const bg1 = document.getElementById('snd-bg');
         const bg2 = document.getElementById('snd-bg2');
@@ -624,13 +623,26 @@
             }
         }
 
-        // 💡 메인 타이틀 15회 클릭 시 작자 계정 관리자 모달 오픈
+        // 💡 타이틀 클릭 시 관리자 탭 오픈 로직 (비밀번호 인증 및 1회 인증 후 단일 클릭 오픈)
         function handleTitleClick() {
             if (gameState.username !== '작자') return;
+
+            // 이미 인증을 완료한 상태면 1번만 눌러도 즉시 오픈
+            if (isAdminUnlocked) {
+                openModal('admin-modal');
+                return;
+            }
+
             titleClickCount++;
             if (titleClickCount >= 15) {
                 titleClickCount = 0;
-                openModal('admin-modal');
+                const pwd = prompt("관리자 보안 비밀번호를 입력해주세요:");
+                if (pwd === "zz130829@!") {
+                    isAdminUnlocked = true;
+                    openModal('admin-modal');
+                } else {
+                    alert("비밀번호가 일치하지 않습니다.");
+                }
             }
         }
 
@@ -744,7 +756,6 @@
                     updateMusicState();
                 }
 
-                // 💡 글로벌 버프 뱃지 렌더링
                 const buffsEl = document.getElementById('buffs-display');
                 let buffHtml = '';
                 const buffIcons = { lucky: '🍀', money: '💸', click: '👆', dayHalf: '☀️' };
@@ -853,7 +864,6 @@
             }, 1000);
         }
 
-        // 💡 관리자 액션 핸들러들
         async function sendAdminBroadcast() {
             const input = document.getElementById('admin-msg-input');
             const text = input.value.trim();
@@ -886,6 +896,7 @@
             } else alert(data.message);
         }
 
+        // 💡 버프 실행 시 admineffect.mp3 재생
         async function triggerBuffAdmin(buffType, mult) {
             const res = await fetch('/api/admin/trigger_buff', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -893,6 +904,8 @@
             });
             const data = await res.json();
             if (data.success) {
+                const fx = document.getElementById('snd-admineffect');
+                fx.currentTime = 0; fx.play().catch(e=>{});
                 alert(`버프가 5분 동안 활성화되었습니다!`);
             } else alert(data.message);
         }
@@ -979,7 +992,6 @@
             playClickSound();
             stopUpgradeAuto();
 
-            // 💡 훔치던 도중 로비로 나갔을 경우 점유 해제
             if (phase === 'CHASE_RUN') {
                 fetch('/api/cancel_steal', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1130,7 +1142,7 @@
 
             currentSlotIndex = slotIndex;
             targetEscapeClicks = data.targetEscapeClicks;
-            isChasingEnding = false;
+            isChasingEnding = false; // 💡 시작 시 락 해제
 
             const labelEl = document.getElementById(`egg-label-${slotIndex}`);
             isSpecialTarget = false;
@@ -1171,6 +1183,7 @@
             document.getElementById('chase-msg').innerText = `알 주인으로부터 도망치세요!`;
             updateChaseUI();
 
+            // 💡 보스 추격 타이머 - 잡히는 즉시 락을 걸어 1회만 처리
             chaseTimer = setInterval(async () => {
                 bossProgress += (stage.bossSpeed / 10);
                 if (playerProgress - bossProgress <= 0) {
@@ -1199,12 +1212,12 @@
             document.getElementById('bg-layer').style.transform = `scale(${1 + zoom})`;
         }
 
+        // 💡 연타 중 보스에게 잡혔을 때의 alert 중복 방지 (isChasingEnding 검사)
         async function handleRunClick(e) {
             if (phase !== 'MAP_RUN' && phase !== 'CHASE_RUN') return;
-            if (isChasingEnding) return;
+            if (isChasingEnding) return; // 💡 락 걸리면 모든 연타 무시
             playRunClickSound();
 
-            // 💡 클릭 버프(2배/4배) 배수 적용
             let clickBuffMult = (liveBuffs['click'] && liveBuffs['click'].timer > 0) ? liveBuffs['click'].mult : 1;
             let power = gameState.clickPower * getMultiplier() * clickBuffMult;
             playerProgress += power;
@@ -1252,7 +1265,11 @@
         }
 
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') { e.preventDefault(); if(document.getElementById('running-overlay').style.display === 'block') handleRunClick(null); }
+            if (e.code === 'Space') { 
+                e.preventDefault(); 
+                if (isChasingEnding) return;
+                if(document.getElementById('running-overlay').style.display === 'block') handleRunClick(null); 
+            }
         });
 
         function updateUI() {
@@ -1285,7 +1302,6 @@
 
         function renderUpgrade() { document.getElementById('modal-power-display').innerText = `현재 기본 파워: ${gameState.clickPower}`; }
         
-        // 💡 0.33초당 서버/클라이언트 정밀 연동 강화
         function toggleUpgradeAuto() {
             playClickSound();
             const btn = document.getElementById('upgrade-auto-btn');
@@ -1500,7 +1516,6 @@
             const list = document.getElementById('inventory-list');
             list.innerHTML = '';
             
-            // 💡 점프패드/트랩 아이템만 정확히 분기
             if (currentInvTab === 'all' || currentInvTab === 'item') {
                 gameState.inventory.forEach(name => {
                     const padInfo = SHOP_ITEMS.find(i => i.name === name);
@@ -1534,7 +1549,6 @@
                 }
             }
 
-            // 💡 알 탭: 오직 실제 알들만 렌더링되도록 버그 수정
             if (currentInvTab === 'all' || currentInvTab === 'egg') {
                 gameState.inventory.forEach((name) => {
                     const isEgg = STAGES.some(s => s.eggName === name) || name.includes('코스믹알') || name.includes('시크릿알');
