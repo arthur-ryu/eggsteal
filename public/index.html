@@ -42,16 +42,16 @@
             background: linear-gradient(90deg, #0984e3, #00cec9, #0984e3);
             background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             -webkit-text-stroke: 2px #fff; animation: shine 3s linear infinite; z-index: 10;
-            filter: drop-shadow(0px 8px 16px rgba(0, 0, 0, 0.4)); display: none;
+            filter: drop-shadow(0px 8px 16px rgba(0, 0, 0, 0.4)); display: none; cursor: pointer;
         }
         @keyframes shine { to { background-position: 200% center; } }
 
-        /* 💡 핑크 배경을 없애고 순수 발광 글자로만 큼직하게 출력되는 공지 바 (2단 줄바꿈 지원) */
+        /* 💡 핑크 배경 없는 깔끔한 발광 텍스트 공지 */
         #global-notice-bar {
             display: none; position: absolute; top: 15px; left: 0; width: 100%; z-index: 70;
             background: transparent; color: #fff; text-align: center;
-            padding: 5px 20px; font-weight: 900; font-size: 20px;
-            text-shadow: 0 0 10px rgba(0,0,0,0.8), 0 0 20px rgba(0, 210, 211, 0.8);
+            padding: 5px 20px; font-weight: 900; font-size: 22px;
+            text-shadow: 0 0 10px rgba(0,0,0,0.9), 0 0 20px rgba(0, 210, 211, 0.9);
             line-height: 1.4; pointer-events: none;
         }
 
@@ -67,12 +67,15 @@
         #stage-user-count { font-size: 14px; font-weight: bold; color: #0984e3; background: #e8f4fd; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 1px solid #74b9ff; }
         #stage-user-count:hover { background: #0984e3; color: #fff; }
 
+        /* 💡 낮/밤 및 상단 활성 버프 표시 위젯 */
         #cycle-status-widget {
             position: absolute; bottom: 20px; right: 20px; z-index: 45;
             background: rgba(255, 255, 255, 0.92); padding: 12px 18px; border-radius: 16px;
             border: 2px solid #dfe6e9; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             font-size: 13px; font-weight: 800; display: flex; flex-direction: column; gap: 4px; pointer-events: none;
         }
+        #buffs-display { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
+        .buff-item { font-size: 12px; font-weight: 900; color: #6c5ce7; }
 
         #auth-container {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
@@ -206,12 +209,18 @@
             text-shadow: 0 0 1px #fff;
         }
 
-        /* 💡 5초 트랩 피격 스턴 화면 오버레이 */
         #stun-overlay {
             display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
             z-index: 99999; flex-direction: column; justify-content: center; align-items: center;
             color: #ff4757; font-size: 36px; font-weight: 900; text-align: center;
         }
+
+        /* 💡 관리자 모달 스타일 */
+        .admin-section { margin-bottom: 12px; padding: 10px; background: #f1f2f6; border-radius: 12px; }
+        .admin-section h5 { font-size: 14px; font-weight: 900; margin-bottom: 6px; color: #2d3436; }
+        .admin-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .admin-btn { padding: 6px 12px; font-size: 12px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; background: #0984e3; color: #fff; }
+        .admin-btn:hover { filter: brightness(1.1); }
     </style>
 </head>
 <body>
@@ -221,10 +230,10 @@
         <div style="font-size:24px; color:#fff; margin-top:10px;" id="stun-timer">5초 동안 행동 불가...</div>
     </div>
 
-    <!-- 💡 낮 교대 BGM 및 신규 효과음 -->
     <audio id="snd-bg" src="background.mp3" preload="auto"></audio>
     <audio id="snd-bg2" src="background2.mp3" preload="auto"></audio>
     <audio id="snd-night" src="night.mp3" loop preload="auto"></audio>
+    <audio id="snd-adminchat" src="adminchat.mp3" preload="auto"></audio>
     <audio id="snd-cosmic" src="cosmicegg.mp3" preload="auto"></audio>
     <audio id="snd-secret" src="secretegg.mp3" preload="auto"></audio>
     <audio id="snd-ocean" src="ocean.mp3" preload="auto"></audio>
@@ -257,7 +266,7 @@
     <div id="game-container">
         <div id="bg-layer"></div>
         <div class="overlay" id="main-overlay"></div>
-        <div class="title" id="main-title">Click to Steal EGG</div>
+        <div class="title" id="main-title" onclick="handleTitleClick()">Click to Steal EGG</div>
 
         <div id="global-notice-bar"></div>
 
@@ -267,6 +276,7 @@
         </div>
 
         <div id="cycle-status-widget">
+            <div id="buffs-display"></div>
             <div id="day-timer-text" style="color:#d35400;">☀️ 낮 남은 시간: 05:00</div>
             <div id="night-timer-text" style="color:#2c3e50;">🌙 밤 상태: 낮 진행 중</div>
         </div>
@@ -337,6 +347,51 @@
         </div>
     </div>
 
+    <!-- 💡 관리자 전용 모달 -->
+    <div id="admin-modal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header"><span>🛠️ 관리자 제어 탭 (작자 전용)</span><button class="close-btn" onclick="closeModal('admin-modal')">✕</button></div>
+            <div style="overflow-y:auto; max-height:70vh; display:flex; flex-direction:column; gap:10px;">
+                <div class="admin-section">
+                    <h5>📢 전체 공지 메시지 전송</h5>
+                    <div style="display:flex; gap:6px;">
+                        <input type="text" id="admin-msg-input" placeholder="전체 공지 메시지 입력" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc;">
+                        <button class="admin-btn" onclick="sendAdminBroadcast()">전송</button>
+                    </div>
+                </div>
+                <div class="admin-section">
+                    <h5>🌌 스페셜 알 즉시 스폰</h5>
+                    <div class="admin-row" style="margin-bottom:6px;">
+                        <select id="admin-spawn-stage" style="padding:6px; border-radius:6px;">
+                            <option value="0">Lv.1 바다</option><option value="1">Lv.2 산</option><option value="2">Lv.3 화산</option>
+                            <option value="3">Lv.4 하늘</option><option value="4">Lv.5 벚꽃</option><option value="5">Lv.6 우주</option>
+                            <option value="6">Lv.7 천사</option><option value="7">Lv.8 악마</option>
+                        </select>
+                        <button class="admin-btn" style="background:#8e44ad;" onclick="spawnSpecialEggAdmin('cosmic')">코스믹 알 생성</button>
+                        <button class="admin-btn" style="background:#2d3436;" onclick="spawnSpecialEggAdmin('secret')">시크릿 알 생성</button>
+                    </div>
+                </div>
+                <div class="admin-section">
+                    <h5>⚡ 글로벌 버프 5분 활성화</h5>
+                    <div class="admin-row">
+                        <button class="admin-btn" style="background:#2ed573;" onclick="triggerBuffAdmin('lucky', 2)">🍀 행운 2배</button>
+                        <button class="admin-btn" style="background:#20bf6b;" onclick="triggerBuffAdmin('lucky', 4)">🍀 행운 4배</button>
+                        <button class="admin-btn" style="background:#ffa502;" onclick="triggerBuffAdmin('money', 2)">💸 돈 2배</button>
+                        <button class="admin-btn" style="background:#e67e22;" onclick="triggerBuffAdmin('money', 4)">💸 돈 4배</button>
+                        <button class="admin-btn" style="background:#0984e3;" onclick="triggerBuffAdmin('click', 2)">👆 클릭 2배</button>
+                        <button class="admin-btn" style="background:#2980b9;" onclick="triggerBuffAdmin('click', 4)">👆 클릭 4배</button>
+                        <button class="admin-btn" style="background:#f39c12;" onclick="triggerBuffAdmin('dayHalf', 2)">☀️ 낮절반 (2배)</button>
+                        <button class="admin-btn" style="background:#d35400;" onclick="triggerBuffAdmin('dayHalf', 4)">☀️ 낮절반 (4배)</button>
+                    </div>
+                </div>
+                <div class="admin-section">
+                    <h5>🔥 어드민 강화 (0.3초당 +3)</h5>
+                    <button id="admin-super-btn" class="admin-btn" style="background:#e74c3c; width:100%; padding:10px;" onclick="toggleSuperUpgradeAdmin()">어드민 강화 생성</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="online-modal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header"><span id="online-modal-title">🟢 접속 중인 유저</span><button class="close-btn" onclick="closeModal('online-modal')">✕</button></div>
@@ -380,7 +435,7 @@
             <div style="text-align: center; padding: 20px;">
                 <div id="modal-power-display" style="font-size: 40px; font-weight: 900; color: #e67e22; margin-bottom: 20px;">현재 기본 파워: 1</div>
                 <p style="color:#636e72; font-size:16px; margin-bottom:20px; line-height: 1.5;">
-                    아래 버튼을 켜두면 돈 소모 없이<br><b>0.3초마다 기본 클릭 파워가 1씩 영구 상승</b>합니다!
+                    아래 버튼을 켜두면 돈 소모 없이<br><b id="upgrade-speed-desc">0.3초마다 기본 클릭 파워가 1씩 영구 상승</b>합니다!
                 </p>
                 <button id="upgrade-auto-btn" class="upgrade-btn" onclick="toggleUpgradeAuto();">연타 파워 자동 강화 시작</button>
             </div>
@@ -394,7 +449,10 @@
         let currentSlotIndex = 0;
         let isSpecialTarget = false;
         let specialTargetType = null;
-        let isChasingEnding = false; // 💡 alert 무한 반복 방지 플래그
+        let isChasingEnding = false; // 💡 alert 1회 보장 락
+        let titleClickCount = 0;
+        let isUserAdmin = false;
+        let adminSuperUpgradeActive = false;
         
         let playerProgress = 0;
         let bossProgress = 0;
@@ -410,6 +468,7 @@
         let currentStageUsers = [];
         let isServerNight = false;
         let playedSpecialSoundThisNight = false;
+        let liveBuffs = {};
 
         const SHOP_ITEMS = [
             { name: '기본 점핑패드', price: 0, mult: 1 },
@@ -518,7 +577,7 @@
             if (el) { el.pause(); el.currentTime = 0; }
         }
 
-        // 💡 낮 BGM 교대 재생 리스너 설정
+        // 낮 BGM 교대 루프 리스너
         let currentDayTrack = 1;
         const bg1 = document.getElementById('snd-bg');
         const bg2 = document.getElementById('snd-bg2');
@@ -565,11 +624,24 @@
             }
         }
 
+        // 💡 메인 타이틀 15회 클릭 시 작자 계정 관리자 모달 오픈
+        function handleTitleClick() {
+            if (gameState.username !== '작자') return;
+            titleClickCount++;
+            if (titleClickCount >= 15) {
+                titleClickCount = 0;
+                openModal('admin-modal');
+            }
+        }
+
         window.onload = async () => {
             const res = await fetch('/api/userdata');
             const data = await res.json();
             if (data.success) {
                 gameState = data.user;
+                isUserAdmin = data.isAdmin;
+                adminSuperUpgradeActive = data.adminSuperUpgrade;
+                updateAdminSuperBtnUI();
                 if (!gameState.claimedDex) gameState.claimedDex = [];
                 if (gameState.isFirstLogin) {
                     document.getElementById('auth-container').style.display = 'none';
@@ -636,7 +708,6 @@
                     if (tickData.success) {
                         const prevMoney = gameState.money;
                         gameState.money = tickData.money;
-                        gameState.clickPower = tickData.clickPower;
                         updateUI();
                         if (gameState.money > prevMoney) {
                             const moneyEl = document.getElementById('money-display');
@@ -664,11 +735,27 @@
 
                 const prevNight = isServerNight;
                 isServerNight = syncData.isNight;
+                liveBuffs = syncData.activeBuffs || {};
+                adminSuperUpgradeActive = syncData.adminSuperUpgrade || false;
+                updateAdminSuperBtnUI();
 
                 if (prevNight !== isServerNight) {
                     playedSpecialSoundThisNight = false;
                     updateMusicState();
                 }
+
+                // 💡 글로벌 버프 뱃지 렌더링
+                const buffsEl = document.getElementById('buffs-display');
+                let buffHtml = '';
+                const buffIcons = { lucky: '🍀', money: '💸', click: '👆', dayHalf: '☀️' };
+                const buffOps = { lucky: '×', money: '×', click: '×', dayHalf: '÷' };
+                for (const bType in liveBuffs) {
+                    const b = liveBuffs[bType];
+                    const min = Math.floor(b.timer / 60).toString().padStart(2, '0');
+                    const sec = (b.timer % 60).toString().padStart(2, '0');
+                    buffHtml += `<div class="buff-item">${buffIcons[bType]}${buffOps[bType]}${b.mult} (${min}:${sec})</div>`;
+                }
+                buffsEl.innerHTML = buffHtml;
 
                 const dayEl = document.getElementById('day-timer-text');
                 const nightEl = document.getElementById('night-timer-text');
@@ -685,7 +772,6 @@
                         returnToLobby();
                     }
 
-                    // 💡 밤 3초 이하 카운트다운 및 스페셜 알 효과음/2단 텍스트 출력
                     if (syncData.cycleTimer <= 3 && syncData.cycleTimer > 0) {
                         noticeLines.push(`🌙 낮까지 ${syncData.cycleTimer}... (모든 알 리셋 완료)`);
 
@@ -767,6 +853,80 @@
             }, 1000);
         }
 
+        // 💡 관리자 액션 핸들러들
+        async function sendAdminBroadcast() {
+            const input = document.getElementById('admin-msg-input');
+            const text = input.value.trim();
+            if (!text) return;
+            const res = await fetch('/api/admin/broadcast', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+            const data = await res.json();
+            if (data.success) {
+                input.value = '';
+                const ac = document.getElementById('snd-adminchat');
+                ac.currentTime = 0; ac.play().catch(e=>{});
+                closeModal('admin-modal');
+            } else alert(data.message);
+        }
+
+        async function spawnSpecialEggAdmin(type) {
+            const sIdx = parseInt(document.getElementById('admin-spawn-stage').value);
+            const res = await fetch('/api/admin/spawn_special', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type, stageIndex: sIdx })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const snd = type === 'cosmic' ? document.getElementById('snd-cosmic') : document.getElementById('snd-secret');
+                snd.currentTime = 0; snd.play().catch(e=>{});
+                alert(`${STAGES[sIdx].name}에 ${data.eggName}이 생성되었습니다!`);
+                closeModal('admin-modal');
+            } else alert(data.message);
+        }
+
+        async function triggerBuffAdmin(buffType, mult) {
+            const res = await fetch('/api/admin/trigger_buff', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ buffType, mult })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`버프가 5분 동안 활성화되었습니다!`);
+            } else alert(data.message);
+        }
+
+        async function toggleSuperUpgradeAdmin() {
+            const res = await fetch('/api/admin/toggle_super_upgrade', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            if (data.success) {
+                adminSuperUpgradeActive = data.adminSuperUpgrade;
+                updateAdminSuperBtnUI();
+            }
+        }
+
+        function updateAdminSuperBtnUI() {
+            const btn = document.getElementById('admin-super-btn');
+            const desc = document.getElementById('upgrade-speed-desc');
+            if (btn) {
+                if (adminSuperUpgradeActive) {
+                    btn.innerText = "어드민 강화 해제 (원래대로)";
+                    btn.style.background = "#7f8c8d";
+                } else {
+                    btn.innerText = "어드민 강화 생성 (0.3초당 +3)";
+                    btn.style.background = "#e74c3c";
+                }
+            }
+            if (desc) {
+                desc.innerText = adminSuperUpgradeActive 
+                    ? "0.3초마다 기본 클릭 파워가 3씩 영구 상승 (어드민 버프)" 
+                    : "0.3초마다 기본 클릭 파워가 1씩 영구 상승";
+            }
+        }
+
         function showStageUsers() {
             playClickSound();
             openModal('online-modal');
@@ -818,6 +978,15 @@
         function returnToLobby() {
             playClickSound();
             stopUpgradeAuto();
+
+            // 💡 훔치던 도중 로비로 나갔을 경우 점유 해제
+            if (phase === 'CHASE_RUN') {
+                fetch('/api/cancel_steal', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stageIndex: currentStageIndex, slotIndex: currentSlotIndex })
+                });
+            }
+
             phase = 'LOBBY';
             clearInterval(chaseTimer);
             isChasingEnding = false;
@@ -916,7 +1085,6 @@
             header.style.display = 'flex';
         }
 
-        // 💡 5초 스턴 트리거
         function triggerTrapStun() {
             returnToLobby();
             const overlay = document.getElementById('stun-overlay');
@@ -1033,9 +1201,12 @@
 
         async function handleRunClick(e) {
             if (phase !== 'MAP_RUN' && phase !== 'CHASE_RUN') return;
+            if (isChasingEnding) return;
             playRunClickSound();
 
-            let power = gameState.clickPower * getMultiplier();
+            // 💡 클릭 버프(2배/4배) 배수 적용
+            let clickBuffMult = (liveBuffs['click'] && liveBuffs['click'].timer > 0) ? liveBuffs['click'].mult : 1;
+            let power = gameState.clickPower * getMultiplier() * clickBuffMult;
             playerProgress += power;
             let x = (e && e.clientX) ? e.clientX - 20 : window.innerWidth / 2;
             let y = (e && e.clientY) ? e.clientY - 40 : window.innerHeight / 2;
@@ -1114,6 +1285,7 @@
 
         function renderUpgrade() { document.getElementById('modal-power-display').innerText = `현재 기본 파워: ${gameState.clickPower}`; }
         
+        // 💡 0.33초당 서버/클라이언트 정밀 연동 강화
         function toggleUpgradeAuto() {
             playClickSound();
             const btn = document.getElementById('upgrade-auto-btn');
@@ -1122,9 +1294,14 @@
                 btn.innerText = "⚡ 파워 강화 가동 중... (다시 눌러 중지)";
                 btn.classList.add('active');
                 
-                clientVisualTimer = setInterval(() => {
-                    gameState.clickPower += 1;
-                    renderUpgrade();
+                clientVisualTimer = setInterval(async () => {
+                    const res = await fetch('/api/upgrade_step', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        gameState.clickPower = data.clickPower;
+                        renderUpgrade();
+                        updateUI();
+                    }
                 }, 333);
             } else {
                 stopUpgradeAuto();
@@ -1281,7 +1458,6 @@
             renderInventory();
         }
 
-        // 💡 트랩 설치 대화상자
         async function openTrapInstallDialog() {
             playClickSound();
             const mapNames = STAGES.map((s, idx) => `${idx + 1}. ${s.name}`).join('\n');
@@ -1306,7 +1482,6 @@
             } else alert(data.message);
         }
 
-        // 💡 트랩 회수 함수
         async function recallTrap() {
             playClickSound();
             const res = await fetch('/api/trap_recall', {
@@ -1325,6 +1500,7 @@
             const list = document.getElementById('inventory-list');
             list.innerHTML = '';
             
+            // 💡 점프패드/트랩 아이템만 정확히 분기
             if (currentInvTab === 'all' || currentInvTab === 'item') {
                 gameState.inventory.forEach(name => {
                     const padInfo = SHOP_ITEMS.find(i => i.name === name);
@@ -1340,7 +1516,6 @@
                     }
                 });
 
-                // 💡 트랩 아이템 카드 렌더링 (보유 중이거나 이미 설치된 경우 표시)
                 const hasTrap = gameState.inventory.includes('트랩');
                 const isTrapInstalled = gameState.installedTrapStage !== null && gameState.installedTrapStage !== undefined;
 
@@ -1359,16 +1534,24 @@
                 }
             }
 
+            // 💡 알 탭: 오직 실제 알들만 렌더링되도록 버그 수정
             if (currentInvTab === 'all' || currentInvTab === 'egg') {
                 gameState.inventory.forEach((name) => {
-                    const eggColor = EGG_COLORS[name] || (name === '코스믹알' ? '#8e44ad' : name === '시크릿알' ? '#2d3436' : '#0984e3');
-                    list.innerHTML += `
-                        <div class="inv-item egg-card" style="border-color: ${eggColor}; background: ${eggColor}18; cursor:pointer;" onclick="playClickSound(); hatchEggConfirm('${name}')">
-                            <h4 style="color:${eggColor}; font-size:16px;">${name}</h4>
-                            <span style="font-size:36px; margin-top:4px;">🥚</span>
-                            <p style="color:#636e72; font-size:10px; margin-top:4px;">클릭하여 부화</p>
-                        </div>
-                    `;
+                    const isEgg = STAGES.some(s => s.eggName === name) || name.includes('코스믹알') || name.includes('시크릿알');
+                    if (isEgg) {
+                        let eggColor = '#0984e3';
+                        if (name.includes('코스믹알')) eggColor = '#8e44ad';
+                        else if (name.includes('시크릿알')) eggColor = '#2d3436';
+                        else if (EGG_COLORS[name]) eggColor = EGG_COLORS[name];
+
+                        list.innerHTML += `
+                            <div class="inv-item egg-card" style="border-color: ${eggColor}; background: ${eggColor}18; cursor:pointer;" onclick="playClickSound(); hatchEggConfirm('${name}')">
+                                <h4 style="color:${eggColor}; font-size:16px;">${name}</h4>
+                                <span style="font-size:36px; margin-top:4px;">🥚</span>
+                                <p style="color:#636e72; font-size:10px; margin-top:4px;">클릭하여 부화</p>
+                            </div>
+                        `;
+                    }
                 });
             }
 
