@@ -46,11 +46,11 @@ const PET_POOLS = {
     '바다알': ['🐢', '🐚', '🦪', '🦐', '🦞', '🦀', '🦑', '🐙', '🪼', '🐡', '🐟', '🐠', '🦭', '🦦', '🐬', '🐋', '🐳', '🦈'],
     '산알': ['🐸', '🐍', '🦎', '🐰', '🦔', '🐿️', '🦫', '🦡', '🐐', '🐏', '🐑', '🦙', '🐗', '🫎', '🦌', '🐺', '🦊', '🐻', '🐅'],
     '용암알': ['🐅', '🐆', '🦬', '🦏', '🐘', '🦣', '🐊', '🦂', '🦇', '🦕', '🐲', '🐉', '🦖'],
-    '하늘알': ['🪲', '🐞', '🪰', '🐝', '🦋', '🦤', '🐓', '🦃', '🦚', '🦜', '🐦', '🐤', '🐥', '🐣', '🕊️️', '🦢', '🦩', '🦅', '🦉', '🪽'],
+    '하늘알': ['🪲', '🐞', '🪰', '🐝', '🦋', '🦤', '🐓', '🦃', '🦚', '🦜', '🐦', '🐤', '🐥', '🐣', '🕊', '🦢', '🦩', '🦅', '🦉', '🪽'],
     '벚꽃알': ['🐮', '🐷', '🐽', '🐔', '🐕', '🐈', '🦨', '🦥', '🦝', '🐭', '🐹', '🐴', '🦄', '🐶', '🐱', '🐅🌸'],
     '우주알': ['🐪', '🐫', '🦘', '🦓', '🦒', '🦛', '🦁', '🐯', '🐼', '🐨', '🦍', '🦧', '🐵', '🙈', '🙉', '🙊', '👽'],
-    '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸️️', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '👿', '😈'],
-    '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁️', '🌙', '👼']
+    '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '👿', '😈'],
+    '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁️️', '🌙', '👼']
 };
 
 const BASE_MPS = { 
@@ -112,12 +112,11 @@ let globalNotice = "";
 let trapNotice = "";
 
 let lastSoundEvent = { id: 0, sound: null };
-let lastCutsceneEvent = { id: 0 }; // 💡 관리자 강제 애니메이션 동기화
+let lastCutsceneEvent = { id: 0 };
 
 const activeBuffs = {};
 let adminSuperUpgrade = false;
 
-// 💡 15분 주기 에러 이벤트 관리 (15분 대기: 900초, 5분 지속: 300초)
 let isErrorEvent = false;
 let errorCycleTimer = 900;
 
@@ -133,7 +132,7 @@ function getDayDuration() {
 }
 
 function updateErrorSlots() {
-    const errorMult = getBuffMult('errorCount'); // 관리자 🦠 배수
+    const errorMult = getBuffMult('errorCount');
     const targetCount = Math.min(5, Math.max(1, 1 * errorMult));
     stagesState.forEach(st => {
         st.slots.forEach(s => s.isError = false);
@@ -149,23 +148,22 @@ setInterval(() => {
     cycleTimer--;
     errorCycleTimer--;
 
-    // 💡 에러 이벤트 주기 순환
+    // 💡 15분 주기 에러 이벤트 자동 시작 (전원 사운드 브로드캐스트)
     if (errorCycleTimer <= 0) {
         if (!isErrorEvent) {
             isErrorEvent = true;
-            errorCycleTimer = 300; // 5분간 지속
+            errorCycleTimer = 300;
             globalNotice = "⚠️ 시스템 에러 효과가 실행되었습니다!";
             lastSoundEvent = { id: Date.now(), sound: 'error' };
             updateErrorSlots();
             setTimeout(() => { if (globalNotice.includes("에러")) globalNotice = ""; }, 5000);
         } else {
             isErrorEvent = false;
-            errorCycleTimer = 900; // 15분 대기
+            errorCycleTimer = 900;
             updateErrorSlots();
         }
     }
 
-    // 버프 타이머 차감
     for (const key in activeBuffs) {
         if (activeBuffs[key].timer > 0) {
             activeBuffs[key].timer--;
@@ -176,7 +174,6 @@ setInterval(() => {
         }
     }
 
-    // 💡 행운 버그 수정: 밤 3초 전 스페셜 알 판정 및 1회성 미래 예약
     if (isNight && cycleTimer === 3) {
         if (!upcomingSpecialType) {
             if (nightCount >= nextSecretTarget) {
@@ -397,7 +394,7 @@ app.post('/api/admin/trigger_buff', (req, res) => {
     res.json({ success: true, activeBuffs });
 });
 
-// 💡 관리자: 에러 효과 즉시 5분 실행
+// 💡 관리자 에러 효과 발동 (전원 사운드 브로드캐스트)
 app.post('/api/admin/trigger_error_event', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
@@ -410,7 +407,6 @@ app.post('/api/admin/trigger_error_event', (req, res) => {
     res.json({ success: true });
 });
 
-// 💡 관리자: 전 유저 강제 컷신(애니메이션) 실행
 app.post('/api/admin/trigger_cutscene', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
@@ -578,7 +574,6 @@ app.get('/api/online', (req, res) => {
     res.json({ success: true, users: activeUsers });
 });
 
-// 💡 에러 가챠 뽑기 API (1,000 에러코인)
 app.post('/api/error_gacha', async (req, res) => {
     const username = authenticateUser(req);
     if (!username) return res.json({ success: false, message: '인증 실패' });
@@ -595,28 +590,24 @@ app.post('/api/error_gacha', async (req, res) => {
     let rewardDetail = '';
 
     if (rand < 50.0) {
-        // 돈 (50%): 5,000 ~ 1,000,000 (지수 가중치)
         rewardType = 'money';
         const factor = Math.pow(Math.random(), 3.5);
         const amount = Math.floor(5000 + factor * 995000);
         user.money += amount;
         rewardDetail = `${amount.toLocaleString()}원`;
     } else if (rand < 92.5) {
-        // 클릭 파워 (42.5%): 100 ~ 5,000 (가중치)
         rewardType = 'power';
         const factor = Math.pow(Math.random(), 3.0);
         const amount = Math.floor(100 + factor * 4900);
         user.clickPower = (user.clickPower || 1) + amount;
         rewardDetail = `클릭 파워 +${amount.toLocaleString()}`;
     } else if (rand < 99.5) {
-        // 코스믹 알 (7%): 랜덤 맵 코스믹알
         rewardType = 'cosmic_egg';
         const s = STAGES[Math.floor(Math.random() * STAGES.length)];
         const eggName = `${s.name.split(' ')[1]}코스믹알`;
         user.inventory.push(eggName);
         rewardDetail = `[${eggName}]`;
     } else {
-        // 에러 알 (0.5% 확정)
         rewardType = 'error_egg';
         user.inventory.push('에러알');
         rewardDetail = `[에러알] 획득!`;
@@ -658,7 +649,6 @@ app.post('/api/hatch', async (req, res) => {
     let baseMps = 10;
     let actualSourceEgg = eggName;
 
-    // 💡 에러 알 전용 부화: 90% 코스믹(🦠), 10% 시크릿(☠️) - 악마/천사급 초고수익
     if (eggName === '에러알') {
         const isSecret = Math.random() < 0.1;
         pickedEmoji = isSecret ? '☠️' : '🦠';
@@ -834,7 +824,6 @@ app.post('/api/escape', async (req, res) => {
     let eggToGive = STAGES[stageIndex].eggName;
     let earnedCoins = 0;
 
-    // 💡 에러 훔치기 슬롯 완료 검증: 에러코인 100개 지급
     if (slot.isError) {
         earnedCoins = 100;
         user.errorCoins = (user.errorCoins || 0) + 100;
