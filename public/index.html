@@ -36,7 +36,6 @@
         }
         #intro-start-btn:hover { background: #fff; color: #000; }
 
-        /* 💡 관리자 강제 전체 컷신 오버레이 */
         #cutscene-screen {
             display: none; position: fixed; inset: 0; background: #000; z-index: 99998;
             flex-direction: column; justify-content: center; align-items: center;
@@ -104,16 +103,36 @@
         .start-run-btn { padding: 20px 50px; font-size: clamp(24px, 4vw, 32px); font-weight: 900; background: linear-gradient(135deg, #ff7675, #d63031); color: #fff; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 10px 30px rgba(214, 48, 49, 0.4); transition: 0.2s; }
         .start-run-btn:hover { transform: scale(1.05); box-shadow: 0 15px 40px rgba(214, 48, 49, 0.6); }
 
-        #map-panel { position: absolute; right: -450px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 25; background: rgba(255, 255, 255, 0.94); padding: 20px; border-radius: 20px; border: 2px solid rgba(9, 132, 227, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); transition: right 0.4s ease; max-height: 85vh; overflow-y: auto; width: 320px; color: #2d3436; }
-        .map-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        .map-close-btn { background: none; border: none; color: #636e72; font-size: 24px; font-weight: bold; cursor: pointer; }
-        .map-close-btn:hover { color: #d63031; }
+        /* 💡 맵 선택 패널 스타일 (z-index 및 닫기 버튼 레이어 완벽 보강) */
+        #map-panel { 
+            position: absolute; right: -450px; top: 50%; transform: translateY(-50%); 
+            display: flex; flex-direction: column; gap: 10px; z-index: 35; 
+            background: rgba(255, 255, 255, 0.96); padding: 20px; border-radius: 20px; 
+            border: 2px solid rgba(9, 132, 227, 0.3); box-shadow: 0 15px 40px rgba(0,0,0,0.3); 
+            backdrop-filter: blur(12px); transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            max-height: 85vh; overflow-y: auto; width: 320px; color: #2d3436; 
+        }
+        .map-panel-header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 5px; position: sticky; top: 0; background: inherit; z-index: 50; padding-bottom: 5px; 
+        }
+        /* 💡 X 닫기 버튼이 절대 가려지지 않게 최상위 레이어로 돌출 */
+        .map-close-btn { 
+            background: #dfe6e9; border: none; color: #2d3436; font-size: 20px; 
+            font-weight: 900; cursor: pointer; width: 34px; height: 34px; border-radius: 50%; 
+            display: flex; justify-content: center; align-items: center; transition: 0.2s; 
+            z-index: 100; pointer-events: auto;
+        }
+        .map-close-btn:hover { background: #ff7675; color: #fff; transform: scale(1.1); }
         .map-btn { padding: 12px 20px; font-size: 16px; font-weight: 700; text-align: left; background: #f8f9fa; color: #2d3436; border: 1px solid #dfe6e9; border-radius: 12px; cursor: pointer; transition: 0.2s; }
         .map-btn:hover { background: rgba(9, 132, 227, 0.15); border-color: #0984e3; transform: translateX(-5px); }
 
         #fullscreen-btn { position: absolute; top: 15px; left: 15px; z-index: 50; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.85); color: #d35400; border: 1px solid #e67e22; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        
+        /* 💡 원래 우측 상단 위치로 복원된 버튼들 */
         #online-users-btn { position: absolute; top: 15px; right: 15px; z-index: 50; display: none; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.85); color: #0984e3; border: 1px solid #74b9ff; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-        #lobby-return-btn { position: absolute; top: 55px; right: 15px; z-index: 50; display: none; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.85); color: #2d3436; border: 1px solid #b2bec3; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        #error-shop-btn { position: absolute; top: 55px; right: 15px; z-index: 50; display: none; padding: 8px 14px; font-size: 13px; font-weight: bold; background: #000; color: #00ff66; border: 2px solid #00ff66; border-radius: 10px; cursor: pointer; box-shadow: 0 0 10px rgba(0,255,102,0.4); }
+        #lobby-return-btn { position: absolute; top: 95px; right: 15px; z-index: 50; display: none; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.85); color: #2d3436; border: 1px solid #b2bec3; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
 
         #running-overlay { display: none; position: absolute; inset: 0; z-index: 10; cursor: pointer; }
         #ingame-ui { display: none; width: 100%; height: 100%; position: absolute; z-index: 20; pointer-events: none; }
@@ -123,8 +142,6 @@
         .sq-btn:hover { transform: scale(1.05); }
         .sq-btn span { font-size: 22px; margin-bottom: 2px; }
 
-        /* 💡 도감 위 에러 상점 버튼 */
-        .btn-error-shop { border: 2px solid #00ff66; color: #00ff66; background: rgba(0,0,0,0.85); box-shadow: 0 0 10px rgba(0,255,102,0.4); }
         .btn-dex { border: 2px solid #00d2d3; color: #00a8ff; }
         .btn-inv { border: 2px solid #ff4757; color: #ff4757; }
         .btn-shop { border: 2px solid #2ed573; color: #20bf6b; }
@@ -250,12 +267,11 @@
         <div style="font-size:24px; color:#fff; margin-top:10px;" id="stun-timer">5초 동안 행동 불가...</div>
     </div>
 
-    <!-- 💡 관리자 강제 전체 컷신 화면 -->
+    <!-- 관리자 강제 전체 컷신 화면 -->
     <div id="cutscene-screen">
         <div id="cutscene-image"></div>
     </div>
 
-    <!-- 💡 에러 이벤트 전용 BGM (errorbackground.mp3) 추가 -->
     <audio id="snd-bg" src="background.mp3" preload="auto"></audio>
     <audio id="snd-bg2" src="background2.mp3" preload="auto"></audio>
     <audio id="snd-night" src="night.mp3" loop preload="auto"></audio>
@@ -314,7 +330,9 @@
         </div>
 
         <button id="fullscreen-btn" onclick="toggleFullScreen()">📺 전체화면</button>
+        <!-- 💡 원래 위치(우측 상단)로 완벽 복원 -->
         <button id="online-users-btn" onclick="checkOnlineUsers();">🟢 온라인 유저 확인</button>
+        <button id="error-shop-btn" onclick="openModal('error-shop-modal');">👾 에러 상점</button>
         <button id="lobby-return-btn" onclick="returnToLobby();">🏠 로비로 돌아가기</button>
 
         <div id="auth-container">
@@ -333,6 +351,7 @@
             <button onclick="logout();" style="padding: 10px 25px; font-size: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.6); background: rgba(0,0,0,0.4); color: #fff; cursor: pointer;">로그아웃</button>
         </div>
 
+        <!-- 💡 X 닫기 버튼이 최상위(z-index: 100)로 노출되어 절대 가려지지 않음 -->
         <div id="map-panel">
             <div class="map-panel-header">
                 <h3 style="color:#0984e3; font-size:20px;">🗺️ 맵 선택</h3>
@@ -341,7 +360,7 @@
             <button class="map-btn" onclick="startRunningPhase(0);">🌊 Lv.1 바다 (500m)</button>
             <button class="map-btn" onclick="startRunningPhase(1);">⛰️ Lv.2 산 (5,000m)</button>
             <button class="map-btn" onclick="startRunningPhase(2);">🌋 Lv.3 화산 (40,000m)</button>
-            <button class="map-btn" onclick="startRunningPhase(3);">☁️ Lv.4 하늘 (400,000m)</button>
+            <button class="map-btn" onclick="startRunningPhase(3);">☁️️ Lv.4 하늘 (400,000m)</button>
             <button class="map-btn" onclick="startRunningPhase(4);">🌸 Lv.5 벚꽃 (2,000,000m)</button>
             <button class="map-btn" onclick="startRunningPhase(5);">🌌 Lv.6 우주 (12,500,000m)</button>
             <button class="map-btn" style="background: linear-gradient(145deg, #f1c40f, #e67e22); color:#fff; border-color:#f39c12;" onclick="startRunningPhase(6);">👼 Lv.7 천사 (60,000,000m)</button>
@@ -352,8 +371,6 @@
 
         <div id="ingame-ui">
             <div class="sidebar">
-                <!-- 💡 도감 바로 위에 에러 상점 버튼 배치 -->
-                <div class="sq-btn btn-error-shop" onclick="openModal('error-shop-modal');"><span>👾</span>에러</div>
                 <div class="sq-btn btn-dex" onclick="openModal('dex-modal'); renderDex(0);"><span>📖</span>도감</div>
                 <div class="sq-btn btn-inv" onclick="openModal('inv-modal'); renderInventory();"><span>🎒</span>가방</div>
                 <div class="sq-btn btn-shop" onclick="openModal('shop-modal'); renderShop();"><span>🛒</span>상점</div>
@@ -537,7 +554,7 @@
         let isAdminUnlocked = false;
         let clientLastSoundId = 0;
         let clientLastCutsceneId = 0;
-        let isCutscenePlaying = false; // 💡 컷신 진행 플래그
+        let isCutscenePlaying = false;
         
         let playerProgress = 0;
         let bossProgress = 0;
@@ -598,7 +615,7 @@
             '벚꽃알': ['🐮', '🐷', '🐽', '🐔', '🐕', '🐈', '🦨', '🦥', '🦝', '🐭', '🐹', '🐴', '🦄', '🐶', '🐱', '🐅🌸'],
             '우주알': ['🐪', '🐫', '🦘', '🦓', '🦒', '🦛', '🦁', '🐯', '🐼', '🐨', '🦍', '🦧', '🐵', '🙈', '🙉', '🙊', '👽'],
             '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '👿', '😈'],
-            '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁️', '🌙', '👼']
+            '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁', '🌙', '👼']
         };
 
         const BASE_MPS = { '바다알': 8, '산알': 40, '용암알': 320, '하늘알': 2400, '벚꽃알': 20000, '우주알': 200000, '천사알': 2000000, '악마알': 20000000 };
@@ -685,7 +702,6 @@
             }
         });
 
-        // 💡 에러 이벤트 중 errorbackground.mp3 재생 및 컷신 중 BGM 완전 음소거
         function updateMusicState() {
             if (isCutscenePlaying || phase === 'CHASE_RUN') {
                 bg1.pause();
@@ -695,7 +711,6 @@
                 return;
             }
 
-            // 1순위: 에러 이벤트 배경음악
             if (isClientErrorEvent) {
                 bg1.pause();
                 bg2.pause();
@@ -709,7 +724,6 @@
                 errorBgm.pause();
             }
 
-            // 2순위: 밤 배경음악
             if (isServerNight) {
                 bg1.pause();
                 bg2.pause();
@@ -718,7 +732,6 @@
                     nightBgm.play().catch(e => {});
                 }
             } else {
-                // 3순위: 일반 낮 배경음악 교대 루프
                 nightBgm.pause();
                 const activeBg = currentDayTrack === 1 ? bg1 : bg2;
                 if (activeBg.paused) {
@@ -809,10 +822,9 @@
             }, 12500);
         }
 
-        // 💡 관리자 강제 전체 컷신 애니메이션 (재생 중 모든 배경음악 일시정지)
         function playErrorCutscene() {
             isCutscenePlaying = true;
-            updateMusicState(); // 배경음악 즉시 정지
+            updateMusicState();
 
             const screen = document.getElementById('cutscene-screen');
             const img = document.getElementById('cutscene-image');
@@ -820,7 +832,7 @@
 
             const kbSnd = document.getElementById('snd-keyboard');
             kbSnd.currentTime = 0; kbSnd.play().catch(e=>{});
-            img.style.backgroundPosition = '0 0%'; // 1단계 화면
+            img.style.backgroundPosition = '0 0%';
             img.style.opacity = '1';
 
             setTimeout(() => { img.style.opacity = '0'; }, 4000);
@@ -829,7 +841,7 @@
                 stopAudio('snd-keyboard');
                 const errSnd = document.getElementById('snd-error');
                 errSnd.currentTime = 0; errSnd.play().catch(e=>{});
-                img.style.backgroundPosition = '0 50%'; // 2단계 화면
+                img.style.backgroundPosition = '0 50%';
                 img.style.opacity = '1';
             }, 5000);
 
@@ -839,7 +851,7 @@
                 stopAudio('snd-error');
                 const fallSnd = document.getElementById('snd-fall');
                 fallSnd.currentTime = 0; fallSnd.play().catch(e=>{});
-                img.style.backgroundPosition = '0 100%'; // 3단계 화면
+                img.style.backgroundPosition = '0 100%';
                 img.style.opacity = '1';
             }, 10000);
 
@@ -849,7 +861,7 @@
                 stopAudio('snd-fall');
                 screen.style.display = 'none';
                 isCutscenePlaying = false;
-                updateMusicState(); // BGM 복귀
+                updateMusicState();
             }, 15500);
         }
 
@@ -898,7 +910,6 @@
                 adminSuperUpgradeActive = syncData.adminSuperUpgrade || false;
                 updateAdminSuperBtnUI();
 
-                // 💡 에러 이벤트 상태 변경 감지
                 const prevErrorState = isClientErrorEvent;
                 isClientErrorEvent = syncData.isErrorEvent;
                 if (prevErrorState !== isClientErrorEvent) {
@@ -906,16 +917,14 @@
                         const bgLayer = document.getElementById('bg-layer');
                         bgLayer.style.backgroundImage = isClientErrorEvent ? "url('errorbackground.png')" : "url('main.png')";
                     }
-                    updateMusicState(); // BGM 전환
+                    updateMusicState();
                 }
 
-                // 💡 관리자 강제 전체 컷신 감지
                 if (syncData.lastCutsceneEvent && syncData.lastCutsceneEvent.id > clientLastCutsceneId) {
                     clientLastCutsceneId = syncData.lastCutsceneEvent.id;
                     playErrorCutscene();
                 }
 
-                // 💡 전역 사운드 브로드캐스트 동기화 (모든 유저 실시간 재생)
                 if (syncData.lastSoundEvent && syncData.lastSoundEvent.id > clientLastSoundId) {
                     clientLastSoundId = syncData.lastSoundEvent.id;
                     const sndType = syncData.lastSoundEvent.sound;
@@ -1252,6 +1261,7 @@
             runOverlay.style.pointerEvents = 'auto';
             
             document.getElementById('online-users-btn').style.display = 'block';
+            document.getElementById('error-shop-btn').style.display = 'block';
             document.getElementById('lobby-return-btn').style.display = 'none';
             
             document.getElementById('welcome-msg').innerText = `계정 이름: ${gameState.username}`;
@@ -1288,6 +1298,7 @@
             document.getElementById('map-panel').style.right = '-450px';
             document.getElementById('main-overlay').style.display = 'none'; 
             document.getElementById('online-users-btn').style.display = 'none';
+            document.getElementById('error-shop-btn').style.display = 'none';
             document.getElementById('lobby-return-btn').style.display = 'block'; 
             document.getElementById('stage-header').style.display = 'none';
             
