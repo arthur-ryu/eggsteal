@@ -46,10 +46,10 @@ const PET_POOLS = {
     '바다알': ['🐢', '🐚', '🦪', '🦐', '🦞', '🦀', '🦑', '🐙', '🪼', '🐡', '🐟', '🐠', '🦭', '🦦', '🐬', '🐋', '🐳', '🦈'],
     '산알': ['🐸', '🐍', '🦎', '🐰', '🦔', '🐿️', '🦫', '🦡', '🐐', '🐏', '🐑', '🦙', '🐗', '🫎', '🦌', '🐺', '🦊', '🐻', '🐅'],
     '용암알': ['🐅', '🐆', '🦬', '🦏', '🐘', '🦣', '🐊', '🦂', '🦇', '🦕', '🐲', '🐉', '🦖'],
-    '하늘알': ['🪲', '🐞', '🪰', '🐝', '🦋', '🦤', '🐓', '🦃', '🦚', '🦜', '🐦', '🐤', '🐥', '🐣', '🕊️', '🦢', '🦩', '🦅', '🦉', '🪽'],
+    '하늘알': ['🪲', '🐞', '🪰', '🐝', '🦋', '🦤', '🐓', '🦃', '🦚', '🦜', '🐦', '🐤', '🐥', '🐣', '🕊️️', '🦢', '🦩', '🦅', '🦉', '🪽'],
     '벚꽃알': ['🐮', '🐷', '🐽', '🐔', '🐕', '🐈', '🦨', '🦥', '🦝', '🐭', '🐹', '🐴', '🦄', '🐶', '🐱', '🐅🌸'],
     '우주알': ['🐪', '🐫', '🦘', '🦓', '🦒', '🦛', '🦁', '🐯', '🐼', '🐨', '🦍', '🦧', '🐵', '🙈', '🙉', '🙊', '👽'],
-    '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸️', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '👿', '😈'],
+    '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸️️', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '👿', '😈'],
     '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁️', '🌙', '👼']
 };
 
@@ -92,7 +92,7 @@ function getPetRarity(eggName, index, totalLength) {
 }
 
 const stagesState = STAGES.map(() => ({
-    slots: Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false })),
+    slots: Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false, isError: false })),
     traps: []
 }));
 
@@ -111,11 +111,15 @@ let upcomingSpecialStage = null;
 let globalNotice = "";
 let trapNotice = "";
 
-// 💡 전역 사운드 브로드캐스트 이벤트 관리
 let lastSoundEvent = { id: 0, sound: null };
+let lastCutsceneEvent = { id: 0 }; // 💡 관리자 강제 애니메이션 동기화
 
 const activeBuffs = {};
 let adminSuperUpgrade = false;
+
+// 💡 15분 주기 에러 이벤트 관리 (15분 대기: 900초, 5분 지속: 300초)
+let isErrorEvent = false;
+let errorCycleTimer = 900;
 
 function getBuffMult(type) {
     return (activeBuffs[type] && activeBuffs[type].timer > 0) ? activeBuffs[type].mult : 1;
@@ -128,27 +132,66 @@ function getDayDuration() {
     return 300;
 }
 
+function updateErrorSlots() {
+    const errorMult = getBuffMult('errorCount'); // 관리자 🦠 배수
+    const targetCount = Math.min(5, Math.max(1, 1 * errorMult));
+    stagesState.forEach(st => {
+        st.slots.forEach(s => s.isError = false);
+        if (isErrorEvent) {
+            for (let i = 0; i < targetCount; i++) {
+                if (st.slots[i]) st.slots[i].isError = true;
+            }
+        }
+    });
+}
+
 setInterval(() => {
     cycleTimer--;
+    errorCycleTimer--;
 
-    for (const key in activeBuffs) {
-        if (activeBuffs[key].timer > 0) {
-            activeBuffs[key].timer--;
-            if (activeBuffs[key].timer <= 0) delete activeBuffs[key];
+    // 💡 에러 이벤트 주기 순환
+    if (errorCycleTimer <= 0) {
+        if (!isErrorEvent) {
+            isErrorEvent = true;
+            errorCycleTimer = 300; // 5분간 지속
+            globalNotice = "⚠️ 시스템 에러 효과가 실행되었습니다!";
+            lastSoundEvent = { id: Date.now(), sound: 'error' };
+            updateErrorSlots();
+            setTimeout(() => { if (globalNotice.includes("에러")) globalNotice = ""; }, 5000);
+        } else {
+            isErrorEvent = false;
+            errorCycleTimer = 900; // 15분 대기
+            updateErrorSlots();
         }
     }
 
-    if (isNight && cycleTimer === 3) {
-        const lucky = getBuffMult('lucky');
-        const cosmicThreshold = lucky > 1 ? Math.floor(nextCosmicTarget / lucky) : nextCosmicTarget;
-        const secretThreshold = lucky > 1 ? Math.floor(nextSecretTarget / lucky) : nextSecretTarget;
+    // 버프 타이머 차감
+    for (const key in activeBuffs) {
+        if (activeBuffs[key].timer > 0) {
+            activeBuffs[key].timer--;
+            if (activeBuffs[key].timer <= 0) {
+                delete activeBuffs[key];
+                if (key === 'errorCount') updateErrorSlots();
+            }
+        }
+    }
 
-        if (nightCount >= cosmicThreshold) {
-            upcomingSpecialType = 'cosmic';
-            upcomingSpecialStage = Math.floor(Math.random() * STAGES.length);
-        } else if (nightCount >= secretThreshold) {
-            upcomingSpecialType = 'secret';
-            upcomingSpecialStage = Math.floor(Math.random() * STAGES.length);
+    // 💡 행운 버그 수정: 밤 3초 전 스페셜 알 판정 및 1회성 미래 예약
+    if (isNight && cycleTimer === 3) {
+        if (!upcomingSpecialType) {
+            if (nightCount >= nextSecretTarget) {
+                upcomingSpecialType = 'secret';
+                upcomingSpecialStage = Math.floor(Math.random() * STAGES.length);
+                const lucky = getBuffMult('lucky');
+                const baseInterval = 18 + Math.floor(Math.random() * 5);
+                nextSecretTarget = nightCount + Math.max(2, Math.floor(baseInterval / lucky));
+            } else if (nightCount >= nextCosmicTarget) {
+                upcomingSpecialType = 'cosmic';
+                upcomingSpecialStage = Math.floor(Math.random() * STAGES.length);
+                const lucky = getBuffMult('lucky');
+                const baseInterval = 7 + Math.floor(Math.random() * 4);
+                nextCosmicTarget = nightCount + Math.max(1, Math.floor(baseInterval / lucky));
+            }
         }
     }
 
@@ -160,8 +203,9 @@ setInterval(() => {
             upcomingSpecialType = null;
 
             stagesState.forEach(st => {
-                st.slots = Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false }));
+                st.slots = Array.from({ length: 5 }, () => ({ busyBy: null, distanceProgress: 0, isGone: false, isError: false }));
             });
+            updateErrorSlots();
         } else {
             isNight = false;
             cycleTimer = getDayDuration();
@@ -172,11 +216,9 @@ setInterval(() => {
                 if (upcomingSpecialType === 'cosmic') {
                     globalSpecialEgg = { type: 'cosmic', stageIndex: sIdx, slotIndex: slotIdx, eggName: `${STAGES[sIdx].name.split(' ')[1]}코스믹알` };
                     globalNotice = `🌌 [전체 공지] ${STAGES[sIdx].name}에 코스믹 알이 출현했습니다!`;
-                    nextCosmicTarget = nightCount + 7 + Math.floor(Math.random() * 4);
                 } else if (upcomingSpecialType === 'secret') {
                     globalSpecialEgg = { type: 'secret', stageIndex: sIdx, slotIndex: slotIdx, eggName: `${STAGES[sIdx].name.split(' ')[1]}시크릿알` };
                     globalNotice = `🌑 [전체 공지] ${STAGES[sIdx].name}에 전설의 시크릿 알이 출현했습니다!`;
-                    nextSecretTarget = nightCount + 18 + Math.floor(Math.random() * 5);
                 }
             } else {
                 globalNotice = "";
@@ -207,7 +249,7 @@ app.post('/api/signup', async (req, res) => {
     if (existingUser) return res.json({ success: false, message: '이미 존재하는 계정입니다.' });
 
     const newUser = {
-        username, password, clickPower: 1, money: 10000, 
+        username, password, clickPower: 1, money: 10000, errorCoins: 0,
         inventory: ['기본 점핑패드', '트랩'], equipped: '기본 점핑패드', pets: [], equippedPets: [], claimedDex: [],
         installedTrapStage: null,
         isFirstLogin: true 
@@ -254,6 +296,7 @@ app.get('/api/userdata', async (req, res) => {
         if (!user.pets) user.pets = [];
         if (!user.equippedPets) user.equippedPets = [];
         if (!user.claimedDex) user.claimedDex = [];
+        if (user.errorCoins === undefined) user.errorCoins = 0;
         if (!user.inventory.includes('트랩') && user.installedTrapStage === null) {
             user.inventory.push('트랩');
         }
@@ -293,6 +336,8 @@ app.post('/api/sync_stage', (req, res) => {
         success: true,
         isNight,
         cycleTimer,
+        isErrorEvent,
+        errorCycleTimer,
         upcomingSpecialType,
         globalNotice,
         trapNotice,
@@ -300,18 +345,18 @@ app.post('/api/sync_stage', (req, res) => {
         usersInStage,
         activeBuffs,
         adminSuperUpgrade,
-        lastSoundEvent, // 💡 전역 사운드 트리거 전달
+        lastSoundEvent,
+        lastCutsceneEvent,
         slots: currentStageState ? currentStageState.slots : []
     });
 });
 
-// 💡 관리자 메시지 전송 (전체 브로드캐스트 + 4초 뒤 자동 소멸)
 app.post('/api/admin/broadcast', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
     const { text } = req.body;
     globalNotice = `📢 [관리자 작자]: ${text}`;
-    lastSoundEvent = { id: Date.now(), sound: 'adminchat' }; // 전원 효과음 브로드캐스트
+    lastSoundEvent = { id: Date.now(), sound: 'adminchat' };
     setTimeout(() => { 
         if (globalNotice === `📢 [관리자 작자]: ${text}`) globalNotice = ""; 
     }, 4000);
@@ -326,11 +371,10 @@ app.post('/api/admin/spawn_special', (req, res) => {
     const eggName = `${STAGES[stageIndex].name.split(' ')[1]}${type === 'cosmic' ? '코스믹알' : '시크릿알'}`;
     globalSpecialEgg = { type, stageIndex, slotIndex: slotIdx, eggName };
     globalNotice = `📢 작자가 [${STAGES[stageIndex].name}]에 ${type === 'cosmic' ? '코스믹 알' : '시크릿 알'}을 생성했습니다!`;
-    lastSoundEvent = { id: Date.now(), sound: type === 'cosmic' ? 'cosmic' : 'secret' }; // 전원 효과음 브로드캐스트
+    lastSoundEvent = { id: Date.now(), sound: type === 'cosmic' ? 'cosmic' : 'secret' };
     res.json({ success: true, eggName, stageIndex, slotIndex: slotIdx });
 });
 
-// 💡 글로벌 버프 시간 누적(더하기) 시스템
 app.post('/api/admin/trigger_buff', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
@@ -339,15 +383,39 @@ app.post('/api/admin/trigger_buff', (req, res) => {
     const currentTimer = (activeBuffs[buffType] && activeBuffs[buffType].timer > 0) ? activeBuffs[buffType].timer : 0;
     activeBuffs[buffType] = { 
         mult: parseInt(mult), 
-        timer: currentTimer + 300 // 💡 누를 때마다 +300초(5분)씩 계속 더해짐
+        timer: currentTimer + 300 
     };
 
     if (buffType === 'dayHalf' && !isNight) {
         cycleTimer = Math.min(cycleTimer, getDayDuration());
     }
+    if (buffType === 'errorCount') {
+        updateErrorSlots();
+    }
 
-    lastSoundEvent = { id: Date.now(), sound: 'admineffect' }; // 전원 효과음 브로드캐스트
+    lastSoundEvent = { id: Date.now(), sound: 'admineffect' };
     res.json({ success: true, activeBuffs });
+});
+
+// 💡 관리자: 에러 효과 즉시 5분 실행
+app.post('/api/admin/trigger_error_event', (req, res) => {
+    const username = authenticateUser(req);
+    if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
+    isErrorEvent = true;
+    errorCycleTimer = 300;
+    updateErrorSlots();
+    globalNotice = "📢 작자가 에러 효과를 실행했습니다!";
+    lastSoundEvent = { id: Date.now(), sound: 'error' };
+    setTimeout(() => { if (globalNotice.includes("작자가 에러")) globalNotice = ""; }, 5000);
+    res.json({ success: true });
+});
+
+// 💡 관리자: 전 유저 강제 컷신(애니메이션) 실행
+app.post('/api/admin/trigger_cutscene', (req, res) => {
+    const username = authenticateUser(req);
+    if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
+    lastCutsceneEvent = { id: Date.now() };
+    res.json({ success: true });
 });
 
 app.post('/api/admin/toggle_super_upgrade', (req, res) => {
@@ -357,7 +425,7 @@ app.post('/api/admin/toggle_super_upgrade', (req, res) => {
 
     if (adminSuperUpgrade) {
         globalNotice = `📢 작자가 관리자 강화를 생성했습니다!`;
-        lastSoundEvent = { id: Date.now(), sound: 'admineffect' }; // 전원 효과음 브로드캐스트
+        lastSoundEvent = { id: Date.now(), sound: 'admineffect' };
         setTimeout(() => {
             if (globalNotice === `📢 작자가 관리자 강화를 생성했습니다!`) globalNotice = "";
         }, 4000);
@@ -447,7 +515,7 @@ app.post('/api/start_steal', (req, res) => {
     const savedDistance = slot.distanceProgress || 0;
     const remainingClicks = Math.max(50, totalEscape - savedDistance);
 
-    res.json({ success: true, savedDistance, targetEscapeClicks: remainingClicks });
+    res.json({ success: true, savedDistance, targetEscapeClicks: remainingClicks, isError: !!slot.isError });
 });
 
 app.post('/api/cancel_steal', (req, res) => {
@@ -497,7 +565,7 @@ app.post('/api/tick', async (req, res) => {
 
     const newMoney = user.money + totalMps;
     await db.collection('users').updateOne({ username }, { $set: { money: newMoney } });
-    res.json({ success: true, money: newMoney, clickPower: user.clickPower || 1, mps: totalMps });
+    res.json({ success: true, money: newMoney, clickPower: user.clickPower || 1, errorCoins: user.errorCoins || 0, mps: totalMps });
 });
 
 app.get('/api/online', (req, res) => {
@@ -508,6 +576,70 @@ app.get('/api/online', (req, res) => {
         else onlineUsers.delete(user); 
     }
     res.json({ success: true, users: activeUsers });
+});
+
+// 💡 에러 가챠 뽑기 API (1,000 에러코인)
+app.post('/api/error_gacha', async (req, res) => {
+    const username = authenticateUser(req);
+    if (!username) return res.json({ success: false, message: '인증 실패' });
+
+    const user = await db.collection('users').findOne({ username });
+    if (!user || (user.errorCoins || 0) < 1000) {
+        return res.json({ success: false, message: '에러코인이 부족합니다! (필요: 1,000개)' });
+    }
+
+    user.errorCoins -= 1000;
+
+    const rand = Math.random() * 100;
+    let rewardType = '';
+    let rewardDetail = '';
+
+    if (rand < 50.0) {
+        // 돈 (50%): 5,000 ~ 1,000,000 (지수 가중치)
+        rewardType = 'money';
+        const factor = Math.pow(Math.random(), 3.5);
+        const amount = Math.floor(5000 + factor * 995000);
+        user.money += amount;
+        rewardDetail = `${amount.toLocaleString()}원`;
+    } else if (rand < 92.5) {
+        // 클릭 파워 (42.5%): 100 ~ 5,000 (가중치)
+        rewardType = 'power';
+        const factor = Math.pow(Math.random(), 3.0);
+        const amount = Math.floor(100 + factor * 4900);
+        user.clickPower = (user.clickPower || 1) + amount;
+        rewardDetail = `클릭 파워 +${amount.toLocaleString()}`;
+    } else if (rand < 99.5) {
+        // 코스믹 알 (7%): 랜덤 맵 코스믹알
+        rewardType = 'cosmic_egg';
+        const s = STAGES[Math.floor(Math.random() * STAGES.length)];
+        const eggName = `${s.name.split(' ')[1]}코스믹알`;
+        user.inventory.push(eggName);
+        rewardDetail = `[${eggName}]`;
+    } else {
+        // 에러 알 (0.5% 확정)
+        rewardType = 'error_egg';
+        user.inventory.push('에러알');
+        rewardDetail = `[에러알] 획득!`;
+    }
+
+    await db.collection('users').updateOne({ username }, {
+        $set: { 
+            errorCoins: user.errorCoins,
+            money: user.money,
+            clickPower: user.clickPower,
+            inventory: user.inventory
+        }
+    });
+
+    res.json({
+        success: true,
+        rewardType,
+        rewardDetail,
+        errorCoins: user.errorCoins,
+        money: user.money,
+        clickPower: user.clickPower,
+        inventory: user.inventory
+    });
 });
 
 app.post('/api/hatch', async (req, res) => {
@@ -526,7 +658,14 @@ app.post('/api/hatch', async (req, res) => {
     let baseMps = 10;
     let actualSourceEgg = eggName;
 
-    if (eggName.includes('코스믹알') || eggName.includes('시크릿알')) {
+    // 💡 에러 알 전용 부화: 90% 코스믹(🦠), 10% 시크릿(☠️) - 악마/천사급 초고수익
+    if (eggName === '에러알') {
+        const isSecret = Math.random() < 0.1;
+        pickedEmoji = isSecret ? '☠️' : '🦠';
+        rarity = isSecret ? '비밀' : '코스믹';
+        baseMps = isSecret ? 250000000 : 35000000;
+        actualSourceEgg = '악마알';
+    } else if (eggName.includes('코스믹알') || eggName.includes('시크릿알')) {
         const isCosmic = eggName.includes('코스믹알');
         const stagePrefix = eggName.replace('코스믹알', '').replace('시크릿알', '');
         const matchedStage = STAGES.find(s => s.name.includes(stagePrefix)) || STAGES[0];
@@ -693,6 +832,14 @@ app.post('/api/escape', async (req, res) => {
     if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
 
     let eggToGive = STAGES[stageIndex].eggName;
+    let earnedCoins = 0;
+
+    // 💡 에러 훔치기 슬롯 완료 검증: 에러코인 100개 지급
+    if (slot.isError) {
+        earnedCoins = 100;
+        user.errorCoins = (user.errorCoins || 0) + 100;
+    }
+
     if (isSpecial) {
         if (!globalSpecialEgg || globalSpecialEgg.stageIndex !== stageIndex || globalSpecialEgg.slotIndex !== slotIndex || globalSpecialEgg.type !== specialType) {
             return res.json({ success: false, message: '존재하지 않는 스페셜 알입니다.' });
@@ -706,8 +853,17 @@ app.post('/api/escape', async (req, res) => {
     slot.isGone = true;
 
     user.inventory.push(eggToGive);
-    await db.collection('users').updateOne({ username }, { $set: { inventory: user.inventory } });
-    res.json({ success: true, eggName: eggToGive, inventory: user.inventory });
+    await db.collection('users').updateOne({ username }, { 
+        $set: { inventory: user.inventory, errorCoins: user.errorCoins } 
+    });
+
+    res.json({ 
+        success: true, 
+        eggName: eggToGive, 
+        inventory: user.inventory,
+        earnedCoins,
+        errorCoins: user.errorCoins 
+    });
 });
 
 app.post('/api/equip', async (req, res) => {
