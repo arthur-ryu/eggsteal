@@ -36,6 +36,17 @@
         }
         #intro-start-btn:hover { background: #fff; color: #000; }
 
+        /* 💡 관리자 강제 전체 컷신 오버레이 */
+        #cutscene-screen {
+            display: none; position: fixed; inset: 0; background: #000; z-index: 99998;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+        #cutscene-image {
+            width: 100%; height: 100%; position: absolute; inset: 0;
+            background-image: url('errorupdate.png'); background-size: 100% 300%; background-position: 0 0; 
+            opacity: 0; transition: opacity 1.2s ease-in-out;
+        }
+
         .title {
             position: absolute; top: 10%; left: 0; width: 100%; text-align: center;
             font-family: 'Orbitron', sans-serif; font-size: clamp(30px, 5vw, 100px); font-weight: 900;
@@ -102,7 +113,8 @@
 
         #fullscreen-btn { position: absolute; top: 15px; left: 15px; z-index: 50; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.85); color: #d35400; border: 1px solid #e67e22; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
         #online-users-btn { position: absolute; top: 15px; right: 15px; z-index: 50; display: none; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.85); color: #0984e3; border: 1px solid #74b9ff; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-        #lobby-return-btn { position: absolute; top: 55px; right: 15px; z-index: 50; display: none; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.85); color: #2d3436; border: 1px solid #b2bec3; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        #error-shop-btn { position: absolute; top: 55px; right: 15px; z-index: 50; display: none; padding: 8px 14px; font-size: 13px; font-weight: bold; background: #000; color: #00ff66; border: 2px solid #00ff66; border-radius: 10px; cursor: pointer; box-shadow: 0 0 10px rgba(0,255,102,0.4); }
+        #lobby-return-btn { position: absolute; top: 95px; right: 15px; z-index: 50; display: none; padding: 8px 14px; font-size: 13px; font-weight: bold; background: rgba(255,255,255,0.85); color: #2d3436; border: 1px solid #b2bec3; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
 
         #running-overlay { display: none; position: absolute; inset: 0; z-index: 10; cursor: pointer; }
         #ingame-ui { display: none; width: 100%; height: 100%; position: absolute; z-index: 20; pointer-events: none; }
@@ -119,6 +131,7 @@
 
         .status-box { position: absolute; bottom: 20px; left: 20px; background: rgba(255, 255, 255, 0.92); padding: 15px 25px; border-radius: 16px; border: 2px solid rgba(9, 132, 227, 0.3); font-size: 16px; font-weight: 700; color: #2d3436; pointer-events: auto; backdrop-filter: blur(8px); box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
         .money-text { color: #0984e3; margin-top: 5px; font-family: 'Orbitron', sans-serif; font-size: 20px; }
+        .coin-text { color: #00b894; font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: 900; margin-bottom: 4px; }
         .money-tick { animation: tickPop 0.3s ease-out; }
         @keyframes tickPop { 0% { transform: scale(1); color: #0984e3; } 50% { transform: scale(1.1); color: #d63031; } 100% { transform: scale(1); color: #0984e3; } }
 
@@ -129,6 +142,16 @@
         
         .egg-item.busy { opacity: 0.45; filter: grayscale(0.5); }
         .egg-item.gone { display: none !important; }
+
+        /* 💡 초록/검정 글리치 에러 훔치기 버튼 */
+        .egg-label.error-egg {
+            background: linear-gradient(135deg, #000000, #051405) !important;
+            color: #00ff66 !important;
+            border: 2px solid #00ff66 !important;
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.8) !important;
+            animation: glitchPulse 0.4s infinite alternate;
+        }
+        @keyframes glitchPulse { 0% { text-shadow: 0 0 2px #00ff66; } 100% { text-shadow: -2px 0 #ff0055, 2px 0 #00ffff; } }
 
         .egg-label.cosmic-egg { background: linear-gradient(135deg, #8e44ad, #9b59b6) !important; color: #fff !important; box-shadow: 0 0 20px rgba(155, 89, 182, 0.8) !important; }
         .egg-label.secret-egg { background: linear-gradient(135deg, #2d3436, #000000) !important; color: #fff !important; border: 2px solid #fff; box-shadow: 0 0 20px rgba(0, 0, 0, 0.9) !important; }
@@ -227,9 +250,17 @@
         <div style="font-size:24px; color:#fff; margin-top:10px;" id="stun-timer">5초 동안 행동 불가...</div>
     </div>
 
+    <!-- 💡 관리자 강제 전체 컷신 화면 -->
+    <div id="cutscene-screen">
+        <div id="cutscene-image"></div>
+    </div>
+
     <audio id="snd-bg" src="background.mp3" preload="auto"></audio>
     <audio id="snd-bg2" src="background2.mp3" preload="auto"></audio>
     <audio id="snd-night" src="night.mp3" loop preload="auto"></audio>
+    <audio id="snd-error" src="error.mp3" preload="auto"></audio>
+    <audio id="snd-keyboard" src="keyboard.mp3" preload="auto"></audio>
+    <audio id="snd-fall" src="fall.mp3" preload="auto"></audio>
     <audio id="snd-adminchat" src="adminchat.mp3" preload="auto"></audio>
     <audio id="snd-admineffect" src="admineffect.mp3" preload="auto"></audio>
     <audio id="snd-cosmic" src="cosmicegg.mp3" preload="auto"></audio>
@@ -248,7 +279,8 @@
     <audio id="snd-boss-7" src="devil.mp3" preload="auto"></audio>
 
     <div style="display:none;">
-        <img src="intro.png" alt="preload"><img src="main.png" alt="preload"><img src="run.png" alt="preload">
+        <img src="intro.png" alt="preload"><img src="errorupdate.png" alt="preload"><img src="main.png" alt="preload"><img src="run.png" alt="preload">
+        <img src="errorbackground.png" alt="preload">
         <img src="stage1.png" alt="preload"><img src="stage2.png" alt="preload"><img src="stage3.png" alt="preload">
         <img src="stage4.png" alt="preload"><img src="stage5.png" alt="preload"><img src="stage6.png" alt="preload">
         <img src="angel.png" alt="preload"><img src="devi.png" alt="preload">
@@ -281,6 +313,7 @@
 
         <button id="fullscreen-btn" onclick="toggleFullScreen()">📺 전체화면</button>
         <button id="online-users-btn" onclick="checkOnlineUsers();">🟢 온라인 유저 확인</button>
+        <button id="error-shop-btn" onclick="openModal('error-shop-modal');">👾 에러 상점</button>
         <button id="lobby-return-btn" onclick="returnToLobby();">🏠 로비로 돌아가기</button>
 
         <div id="auth-container">
@@ -324,6 +357,7 @@
                 <div class="sq-btn btn-upgrade" onclick="openModal('upgrade-modal'); renderUpgrade();"><span>⚡</span>강화</div>
             </div>
 
+            <!-- 5개의 알 둥지 -->
             <div id="eggs-container">
                 <div class="egg-item" id="egg-slot-0" onclick="stealEgg(0);"><div class="egg-label" id="egg-label-0">훔치기</div></div>
                 <div class="egg-item" id="egg-slot-1" onclick="stealEgg(1);"><div class="egg-label" id="egg-label-1">훔치기</div></div>
@@ -338,8 +372,42 @@
             </div>
 
             <div class="status-box">
+                <div id="error-coin-display" class="coin-text">에러코인: 0개</div>
                 <div id="clicks-display">기본 파워: 1</div>
                 <div id="money-display" class="money-text">자금: 0원</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💡 에러 상점 모달 -->
+    <div id="error-shop-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px; text-align:center;">
+            <div class="modal-header"><span style="color:#00b894;">👾 에러 전용 상점</span><button class="close-btn" onclick="closeModal('error-shop-modal')">✕</button></div>
+            <div style="padding:15px; display:flex; flex-direction:column; gap:12px; align-items:center;">
+                <div style="font-size:18px; font-weight:900;">보유 에러코인: <span id="modal-error-coin" style="color:#00b894;">0</span>개</div>
+                <p style="color:#636e72; font-size:13px; line-height:1.4;">초록/검정 글리치 훔치기 버튼으로 탈출 시<br>회당 에러코인 100개를 얻을 수 있습니다.</p>
+                <button onclick="drawErrorGacha()" style="width:100%; max-width:280px; padding:15px; font-size:18px; font-weight:900; background:linear-gradient(135deg, #00b894, #00cec9); color:#fff; border:none; border-radius:12px; cursor:pointer; box-shadow:0 4px 15px rgba(0,184,148,0.4);">
+                    🎲 1,000 에러코인 뽑기
+                </button>
+                <button onclick="openModal('gacha-rates-modal')" style="background:none; border:none; color:#0984e3; font-weight:bold; cursor:pointer; text-decoration:underline; font-size:14px;">
+                    📋 뽑기 목록 및 확률 보기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💡 뽑기 확률 안내 모달 -->
+    <div id="gacha-rates-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header"><span>📋 에러 뽑기 목록 및 확률</span><button class="close-btn" onclick="closeModal('gacha-rates-modal')">✕</button></div>
+            <div style="padding:10px; font-size:14px; line-height:1.8; color:#2d3436;">
+                <div>💰 <b>자금 (5,000원 ~ 1,000,000원):</b> 50%</div>
+                <div style="font-size:11px; color:#636e72; margin-left:10px;">* 높은 금액일수록 확률 감소</div>
+                <div>⚡ <b>클릭 파워 (100 ~ 5,000):</b> 42.5%</div>
+                <div style="font-size:11px; color:#636e72; margin-left:10px;">* 높은 수치일수록 확률 감소</div>
+                <div>🌌 <b>랜덤 코스믹 알:</b> 7%</div>
+                <div>🦠 <b>에러 알:</b> 0.5%</div>
+                <div style="font-size:11px; color:#00b894; margin-left:10px;">* 부화 시 90% 코스믹(🦠), 10% 시크릿(☠️)</div>
             </div>
         </div>
     </div>
@@ -357,6 +425,10 @@
                     </div>
                 </div>
                 <div class="admin-section">
+                    <h5>🎬 애니메이션 연출 (전체 화면 강제 재생)</h5>
+                    <button class="admin-btn" style="background:#2c3e50; width:100%; padding:10px;" onclick="triggerCutsceneAdmin()">🎬 에러 업데이트 애니메이션 재생</button>
+                </div>
+                <div class="admin-section">
                     <h5>🌌 스페셜 알 즉시 스폰</h5>
                     <div class="admin-row" style="margin-bottom:6px;">
                         <select id="admin-spawn-stage" style="padding:6px; border-radius:6px;">
@@ -366,6 +438,14 @@
                         </select>
                         <button class="admin-btn" style="background:#8e44ad;" onclick="spawnSpecialEggAdmin('cosmic')">코스믹 알 생성</button>
                         <button class="admin-btn" style="background:#2d3436;" onclick="spawnSpecialEggAdmin('secret')">시크릿 알 생성</button>
+                    </div>
+                </div>
+                <div class="admin-section">
+                    <h5>👾 에러 이벤트 제어</h5>
+                    <div class="admin-row" style="margin-bottom:6px;">
+                        <button class="admin-btn" style="background:#00b894;" onclick="triggerErrorEventAdmin()">⚠️ 에러 효과 즉시 5분 실행</button>
+                        <button class="admin-btn" style="background:#00cec9;" onclick="triggerBuffAdmin('errorCount', 2)">🦠 에러 훔치기 2배</button>
+                        <button class="admin-btn" style="background:#0984e3;" onclick="triggerBuffAdmin('errorCount', 4)">🦠 에러 훔치기 4배</button>
                     </div>
                 </div>
                 <div class="admin-section">
@@ -440,18 +520,20 @@
     </div>
 
     <script>
-        let gameState = { clickPower: 1, money: 10000, inventory: [], equipped: '', pets: [], equippedPets: [], claimedDex: [], installedTrapStage: null, isFirstLogin: false };
+        let gameState = { clickPower: 1, money: 10000, errorCoins: 0, inventory: [], equipped: '', pets: [], equippedPets: [], claimedDex: [], installedTrapStage: null, isFirstLogin: false };
         let phase = 'LOBBY'; 
         let currentStageIndex = 0;
         let currentSlotIndex = 0;
         let isSpecialTarget = false;
         let specialTargetType = null;
+        let isCurrentSlotError = false; // 💡 에러 슬롯 여부
         let isChasingEnding = false;
         let titleClickCount = 0;
         let isUserAdmin = false;
         let adminSuperUpgradeActive = false;
         let isAdminUnlocked = false;
-        let clientLastSoundId = 0; // 💡 서버 동기화 사운드 추적용
+        let clientLastSoundId = 0;
+        let clientLastCutsceneId = 0;
         
         let playerProgress = 0;
         let bossProgress = 0;
@@ -466,6 +548,7 @@
 
         let currentStageUsers = [];
         let isServerNight = false;
+        let isClientErrorEvent = false;
         let playedSpecialSoundThisNight = false;
         let liveBuffs = {};
 
@@ -507,10 +590,10 @@
             '바다알': ['🐢', '🐚', '🦪', '🦐', '🦞', '🦀', '🦑', '🐙', '🪼', '🐡', '🐟', '🐠', '🦭', '🦦', '🐬', '🐋', '🐳', '🦈'],
             '산알': ['🐸', '🐍', '🦎', '🐰', '🦔', '🐿️', '🦫', '🦡', '🐐', '🐏', '🐑', '🦙', '🐗', '🫎', '🦌', '🐺', '🦊', '🐻', '🐅'],
             '용암알': ['🐅', '🐆', '🦬', '🦏', '🐘', '🦣', '🐊', '🦂', '🦇', '🦕', '🐲', '🐉', '🦖'],
-            '하늘알': ['🪲', '🐞', '🪰', '🐝', '🦋', '🦤', '🐓', '🦃', '🦚', '🦜', '🐦', '🐤', '🐥', '🐣', '🕊️', '🦢', '🦩', '🦅', '🦉', '🪽'],
+            '하늘알': ['🪲', '🐞', '🪰', '🐝', '🦋', '🦤', '🐓', '🦃', '🦚', '🦜', '🐦', '🐤', '🐥', '🐣', '🕊️️', '🦢', '🦩', '🦅', '🦉', '🪽'],
             '벚꽃알': ['🐮', '🐷', '🐽', '🐔', '🐕', '🐈', '🦨', '🦥', '🦝', '🐭', '🐹', '🐴', '🦄', '🐶', '🐱', '🐅🌸'],
             '우주알': ['🐪', '🐫', '🦘', '🦓', '🦒', '🦛', '🦁', '🐯', '🐼', '🐨', '🦍', '🦧', '🐵', '🙈', '🙉', '🙊', '👽'],
-            '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸️', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '👿', '😈'],
+            '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸️️', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '👿', '😈'],
             '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁️', '🌙', '👼']
         };
 
@@ -704,6 +787,45 @@
             }, 12500);
         }
 
+        // 💡 관리자 강제 전체 컷신 애니메이션 (errorupdate.png)[cite: 1]
+        function playErrorCutscene() {
+            const screen = document.getElementById('cutscene-screen');
+            const img = document.getElementById('cutscene-image');
+            screen.style.display = 'flex';
+
+            const kbSnd = document.getElementById('snd-keyboard');
+            kbSnd.currentTime = 0; kbSnd.play().catch(e=>{});
+            img.style.backgroundPosition = '0 0%'; // 1단계[cite: 1]
+            img.style.opacity = '1';
+
+            setTimeout(() => { img.style.opacity = '0'; }, 4000);
+
+            setTimeout(() => {
+                stopAudio('snd-keyboard');
+                const errSnd = document.getElementById('snd-error');
+                errSnd.currentTime = 0; errSnd.play().catch(e=>{});
+                img.style.backgroundPosition = '0 50%'; // 2단계[cite: 1]
+                img.style.opacity = '1';
+            }, 5000);
+
+            setTimeout(() => { img.style.opacity = '0'; }, 9000);
+
+            setTimeout(() => {
+                stopAudio('snd-error');
+                const fallSnd = document.getElementById('snd-fall');
+                fallSnd.currentTime = 0; fallSnd.play().catch(e=>{});
+                img.style.backgroundPosition = '0 100%'; // 3단계[cite: 1]
+                img.style.opacity = '1';
+            }, 10000);
+
+            setTimeout(() => { img.style.opacity = '0'; }, 14000);
+
+            setTimeout(() => {
+                stopAudio('snd-fall');
+                screen.style.display = 'none';
+            }, 15500);
+        }
+
         function startServerTick() {
             if(serverTickInterval) clearInterval(serverTickInterval);
             serverTickInterval = setInterval(async () => {
@@ -717,6 +839,7 @@
                     if (tickData.success) {
                         const prevMoney = gameState.money;
                         gameState.money = tickData.money;
+                        gameState.errorCoins = tickData.errorCoins || 0;
                         updateUI();
                         if (gameState.money > prevMoney) {
                             const moneyEl = document.getElementById('money-display');
@@ -748,7 +871,23 @@
                 adminSuperUpgradeActive = syncData.adminSuperUpgrade || false;
                 updateAdminSuperBtnUI();
 
-                // 💡 전역 관리자 사운드 브로드캐스트 감지 및 재생 (모든 접속 유저 공통)
+                // 💡 에러 이벤트 배경 전환
+                const prevErrorState = isClientErrorEvent;
+                isClientErrorEvent = syncData.isErrorEvent;
+                if (prevErrorState !== isClientErrorEvent) {
+                    if (phase === 'LOBBY') {
+                        const bgLayer = document.getElementById('bg-layer');
+                        bgLayer.style.backgroundImage = isClientErrorEvent ? "url('errorbackground.png')" : "url('main.png')";
+                    }
+                }
+
+                // 💡 관리자 강제 전체 컷신 감지
+                if (syncData.lastCutsceneEvent && syncData.lastCutsceneEvent.id > clientLastCutsceneId) {
+                    clientLastCutsceneId = syncData.lastCutsceneEvent.id;
+                    playErrorCutscene();
+                }
+
+                // 💡 전역 사운드 브로드캐스트 동기화
                 if (syncData.lastSoundEvent && syncData.lastSoundEvent.id > clientLastSoundId) {
                     clientLastSoundId = syncData.lastSoundEvent.id;
                     const sndType = syncData.lastSoundEvent.sound;
@@ -757,6 +896,7 @@
                     else if (sndType === 'cosmic') targetSnd = document.getElementById('snd-cosmic');
                     else if (sndType === 'secret') targetSnd = document.getElementById('snd-secret');
                     else if (sndType === 'admineffect') targetSnd = document.getElementById('snd-admineffect');
+                    else if (sndType === 'error') targetSnd = document.getElementById('snd-error');
 
                     if (targetSnd) {
                         targetSnd.currentTime = 0;
@@ -769,16 +909,28 @@
                     updateMusicState();
                 }
 
+                // 버프 및 에러 카운트다운 렌더링
                 const buffsEl = document.getElementById('buffs-display');
                 let buffHtml = '';
-                const buffIcons = { lucky: '🍀', money: '💸', click: '👆', dayHalf: '☀️' };
-                const buffOps = { lucky: '×', money: '×', click: '×', dayHalf: '÷' };
+                const buffIcons = { lucky: '🍀', money: '💸', click: '👆', dayHalf: '☀️', errorCount: '🦠' };
+                const buffOps = { lucky: '×', money: '×', click: '×', dayHalf: '÷', errorCount: '×' };
                 for (const bType in liveBuffs) {
                     const b = liveBuffs[bType];
                     const min = Math.floor(b.timer / 60).toString().padStart(2, '0');
                     const sec = (b.timer % 60).toString().padStart(2, '0');
-                    buffHtml += `<div class="buff-item">${buffIcons[bType]}${buffOps[bType]}${b.mult} (${min}:${sec})</div>`;
+                    buffHtml += `<div class="buff-item">${buffIcons[bType] || '⚡'}${buffOps[bType] || '×'}${b.mult} (${min}:${sec})</div>`;
                 }
+
+                if (syncData.isErrorEvent) {
+                    const eMin = Math.floor(syncData.errorCycleTimer / 60).toString().padStart(2, '0');
+                    const eSec = (syncData.errorCycleTimer % 60).toString().padStart(2, '0');
+                    buffHtml += `<div class="buff-item" style="color:#00ff66;">⚠️ 에러 이벤트 (${eMin}:${eSec})</div>`;
+                } else {
+                    const eMin = Math.floor(syncData.errorCycleTimer / 60).toString().padStart(2, '0');
+                    const eSec = (syncData.errorCycleTimer % 60).toString().padStart(2, '0');
+                    buffHtml += `<div class="buff-item" style="color:#a4b0be; font-size:10px;">⚠️ 에러 대기 (${eMin}:${eSec})</div>`;
+                }
+
                 buffsEl.innerHTML = buffHtml;
 
                 const dayEl = document.getElementById('day-timer-text');
@@ -855,6 +1007,7 @@
                         labelEl.className = 'egg-label';
                         if (isCosmic) labelEl.classList.add('cosmic-egg');
                         if (isSecret) labelEl.classList.add('secret-egg');
+                        if (slot && slot.isError) labelEl.classList.add('error-egg');
 
                         if (slot && slot.isGone) {
                             slotEl.classList.add('gone');
@@ -867,6 +1020,7 @@
                             slotEl.classList.remove('busy');
                             if (isCosmic) labelEl.innerText = `코스믹 알 훔치기`;
                             else if (isSecret) labelEl.innerText = `시크릿 알 훔치기`;
+                            else if (slot && slot.isError) labelEl.innerText = `⚠️ 에러 알 훔치기`;
                             else {
                                 const distSaved = slot ? slot.distanceProgress : 0;
                                 labelEl.innerText = distSaved > 0 ? `훔치기 (-${distSaved.toLocaleString()}m)` : `훔치기`;
@@ -890,6 +1044,23 @@
                 input.value = '';
                 closeModal('admin-modal');
             } else alert(data.message);
+        }
+
+        async function triggerCutsceneAdmin() {
+            const res = await fetch('/api/admin/trigger_cutscene', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                closeModal('admin-modal');
+            }
+        }
+
+        async function triggerErrorEventAdmin() {
+            const res = await fetch('/api/admin/trigger_error_event', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                alert("에러 효과가 즉시 발동되었습니다!");
+                closeModal('admin-modal');
+            }
         }
 
         async function spawnSpecialEggAdmin(type) {
@@ -943,6 +1114,23 @@
                 desc.innerText = adminSuperUpgradeActive 
                     ? "0.3초마다 기본 클릭 파워가 3씩 영구 상승 (어드민 버프)" 
                     : "0.3초마다 기본 클릭 파워가 1씩 영구 상승";
+            }
+        }
+
+        // 💡 1,000 에러코인 가챠 실행
+        async function drawErrorGacha() {
+            playClickSound();
+            const res = await fetch('/api/error_gacha', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                gameState.errorCoins = data.errorCoins;
+                gameState.money = data.money;
+                gameState.clickPower = data.clickPower;
+                gameState.inventory = data.inventory;
+                updateUI();
+                alert(`🎉 [에러 뽑기 결과] 🎉\n축하합니다! ${data.rewardDetail}을(를) 획득하셨습니다!`);
+            } else {
+                alert(data.message);
             }
         }
 
@@ -1012,7 +1200,7 @@
             updateMusicState();
 
             const bgLayer = document.getElementById('bg-layer');
-            bgLayer.style.backgroundImage = "url('main.png')";
+            bgLayer.style.backgroundImage = isClientErrorEvent ? "url('errorbackground.png')" : "url('main.png')";
             bgLayer.style.transform = "scale(1)";
             
             document.getElementById('main-overlay').style.display = 'block';
@@ -1039,6 +1227,7 @@
             runOverlay.style.pointerEvents = 'auto';
             
             document.getElementById('online-users-btn').style.display = 'block';
+            document.getElementById('error-shop-btn').style.display = 'block';
             document.getElementById('lobby-return-btn').style.display = 'none';
             
             document.getElementById('welcome-msg').innerText = `계정 이름: ${gameState.username}`;
@@ -1075,6 +1264,7 @@
             document.getElementById('map-panel').style.right = '-450px';
             document.getElementById('main-overlay').style.display = 'none'; 
             document.getElementById('online-users-btn').style.display = 'none';
+            document.getElementById('error-shop-btn').style.display = 'none';
             document.getElementById('lobby-return-btn').style.display = 'block'; 
             document.getElementById('stage-header').style.display = 'none';
             
@@ -1159,6 +1349,7 @@
 
             currentSlotIndex = slotIndex;
             targetEscapeClicks = data.targetEscapeClicks;
+            isCurrentSlotError = !!data.isError;
             isChasingEnding = false;
             window.removeEventListener('click', blockAllInputs, true);
             window.removeEventListener('touchstart', blockAllInputs, true);
@@ -1291,7 +1482,13 @@
                         window.removeEventListener('touchstart', blockAllInputs, true);
                         if (data.success) {
                             gameState.inventory = data.inventory;
-                            alert(`탈출 성공!!! 🎉 [${data.eggName}] 획득!`);
+                            if (data.earnedCoins > 0) {
+                                gameState.errorCoins = data.errorCoins;
+                                updateUI();
+                                alert(`탈출 성공! 알을 훔쳤습니다! 🎉\n[${data.eggName}] 획득!\n👾 에러코인 +100개 지급 완료!`);
+                            } else {
+                                alert(`탈출 성공!!! 🎉 [${data.eggName}] 획득!`);
+                            }
                             returnToLobby();
                         } else {
                             alert(data.message || "탈출 실패!");
@@ -1313,6 +1510,9 @@
         function updateUI() {
             document.getElementById('clicks-display').innerText = `기본 파워: ${gameState.clickPower}`;
             document.getElementById('money-display').innerText = `자금: ${Math.floor(gameState.money).toLocaleString()}원`;
+            document.getElementById('error-coin-display').innerText = `에러코인: ${(gameState.errorCoins || 0).toLocaleString()}개`;
+            const modalCoins = document.getElementById('modal-error-coin');
+            if (modalCoins) modalCoins.innerText = (gameState.errorCoins || 0).toLocaleString();
             if (document.getElementById('upgrade-modal').style.display === 'flex') renderUpgrade();
         }
 
@@ -1589,15 +1789,27 @@
 
             if (currentInvTab === 'all' || currentInvTab === 'egg') {
                 gameState.inventory.forEach((name) => {
-                    const isEgg = STAGES.some(s => s.eggName === name) || name.includes('코스믹알') || name.includes('시크릿알');
+                    const isEgg = STAGES.some(s => s.eggName === name) || name.includes('코스믹알') || name.includes('시크릿알') || name === '에러알';
                     if (isEgg) {
                         let eggColor = '#0984e3';
-                        if (name.includes('코스믹알')) eggColor = '#8e44ad';
-                        else if (name.includes('시크릿알')) eggColor = '#2d3436';
-                        else if (EGG_COLORS[name]) eggColor = EGG_COLORS[name];
+                        let eggCardStyle = '';
+                        if (name === '에러알') {
+                            eggColor = '#00ff66';
+                            eggCardStyle = 'border-color: #00ff66; background: #000; box-shadow: 0 0 10px rgba(0,255,102,0.3);';
+                        } else if (name.includes('코스믹알')) {
+                            eggColor = '#8e44ad';
+                        } else if (name.includes('시크릿알')) {
+                            eggColor = '#2d3436';
+                        } else if (EGG_COLORS[name]) {
+                            eggColor = EGG_COLORS[name];
+                        }
+
+                        if (!eggCardStyle) {
+                            eggCardStyle = `border-color: ${eggColor}; background: ${eggColor}18;`;
+                        }
 
                         list.innerHTML += `
-                            <div class="inv-item egg-card" style="border-color: ${eggColor}; background: ${eggColor}18; cursor:pointer;" onclick="playClickSound(); hatchEggConfirm('${name}')">
+                            <div class="inv-item egg-card" style="${eggCardStyle} cursor:pointer;" onclick="playClickSound(); hatchEggConfirm('${name}')">
                                 <h4 style="color:${eggColor}; font-size:16px;">${name}</h4>
                                 <span style="font-size:36px; margin-top:4px;">🥚</span>
                                 <p style="color:#636e72; font-size:10px; margin-top:4px;">클릭하여 부화</p>
