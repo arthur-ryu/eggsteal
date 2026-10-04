@@ -42,7 +42,7 @@ const STAGES = [
     { name: 'Lv.6 우주', escapeClicks: 50000000, eggName: '우주알' },
     { name: 'Lv.7 천사', escapeClicks: 150000000, eggName: '천사알' },
     { name: 'Lv.8 악마', escapeClicks: 800000000, eggName: '악마알' },
-    { name: 'Lv.9 마법의 숲', escapeClicks: 50000000000, eggName: '마법숲알' }
+    { name: 'Lv.9 마법의 숲', escapeClicks: 25000000000, eggName: '마법숲알' }
 ];
 
 const PET_POOLS = {
