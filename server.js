@@ -39,7 +39,8 @@ const STAGES = [
     { name: 'Lv.5 벚꽃', escapeClicks: 4000000, eggName: '벚꽃알' },
     { name: 'Lv.6 우주', escapeClicks: 50000000, eggName: '우주알' },
     { name: 'Lv.7 천사', escapeClicks: 150000000, eggName: '천사알' },
-    { name: 'Lv.8 악마', escapeClicks: 800000000, eggName: '악마알' }
+    { name: 'Lv.8 악마', escapeClicks: 800000000, eggName: '악마알' },
+    { name: 'Lv.9 마법의 숲', escapeClicks: 2500000000, eggName: '마법숲알' } // 💡 신규 최고난도 맵
 ];
 
 const PET_POOLS = {
@@ -50,7 +51,8 @@ const PET_POOLS = {
     '벚꽃알': ['🐮', '🐷', '🐽', '🐔', '🐕', '🐈', '🦨', '🦥', '🦝', '🐭', '🐹', '🐴', '🦄', '🐶', '🐱', '🐅🌸'],
     '우주알': ['🐪', '🐫', '🦘', '🦓', '🦒', '🦛', '🦁', '🐯', '🐼', '🐨', '🦍', '🦧', '🐵', '🙈', '🙉', '🙊', '👽'],
     '악마알': ['🔱', '🔥', '💀', '☠️', '👹', '👺', '🩸', '🕷️', '🕸', '🦂', '🦇', '🐍', '🐉', '🐲', '👁️', '🌑', '🖤', '⛓️', '👿', '😈'],
-    '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁️️', '🌙', '👼']
+    '천사알': ['😇', '✨', '🌟', '⭐', '💫', '☀️', '🌈', '🤍', '🕊️', '🦢', '🦄', '🌷', '💎', '☁', '🌙', '👼'],
+    '마법숲알': [ '🌱', '🌿', '🍀', '☘️', '🍄', '🌳', '🌲', '🌴', '🌵', '🌺', '🌷', '🌹', '🌻', '🪻', '🍁', '🍂', '🍃', '🌾', '🪵', '🪺', '🦚', '🦜', '🦔', '🐿️', '🦫', '🦡', '🦥', '🦨', '🦇', '🧚', '🧙', '🧞', '🔮', '🪄', '🧿', '🪬', '🪷', '🧩', '🗿', '🦁🦋' ]
 };
 
 const BASE_MPS = { 
@@ -61,7 +63,8 @@ const BASE_MPS = {
     '벚꽃알': 20000, 
     '우주알': 200000, 
     '천사알': 2000000, 
-    '악마알': 20000000 
+    '악마알': 20000000,
+    '마법숲알': 100000000
 };
 
 const DEX_REWARDS = {
@@ -76,13 +79,14 @@ const DEX_REWARDS = {
 };
 
 function getPetRarity(eggName, index, totalLength) {
-    if ((eggName === '천사알' || eggName === '악마알') && index === totalLength - 1) return '디바인';
+    if ((eggName === '천사알' || eggName === '악마알' || eggName === '마법숲알') && index === totalLength - 1) return '디바인';
     let minRarityIdx = 0;
     if (eggName === '용암알') minRarityIdx = 1;
     if (eggName === '하늘알') minRarityIdx = 2;
     if (eggName === '벚꽃알') minRarityIdx = 2;
     if (eggName === '우주알') minRarityIdx = 2;
     if (eggName === '천사알' || eggName === '악마알') minRarityIdx = 3;
+    if (eggName === '마법숲알') minRarityIdx = 3;
 
     const rarities = ['일반', '레어', '에픽', '전설', '신화', '코스믹', '비밀'];
     const available = rarities.slice(minRarityIdx);
@@ -148,7 +152,6 @@ setInterval(() => {
     cycleTimer--;
     errorCycleTimer--;
 
-    // 💡 15분 주기 에러 이벤트 자동 시작 (전원 사운드 브로드캐스트)
     if (errorCycleTimer <= 0) {
         if (!isErrorEvent) {
             isErrorEvent = true;
@@ -348,6 +351,48 @@ app.post('/api/sync_stage', (req, res) => {
     });
 });
 
+// 💡 유저 간 선물하기 API (알/동물)
+app.post('/api/send_gift', async (req, res) => {
+    const senderName = authenticateUser(req);
+    const { targetUser, giftType, itemId } = req.body; // giftType: 'egg' | 'pet'
+    if (!senderName) return res.json({ success: false, message: '인증 실패' });
+    if (senderName === targetUser) return res.json({ success: false, message: '자신에게는 보낼 수 없습니다.' });
+
+    const sender = await db.collection('users').findOne({ username: senderName });
+    const receiver = await db.collection('users').findOne({ username: targetUser });
+    if (!receiver) return res.json({ success: false, message: '상대방 유저를 찾을 수 없습니다.' });
+
+    let sentItemName = '';
+    if (giftType === 'egg') {
+        const eggIdx = sender.inventory.indexOf(itemId);
+        if (eggIdx === -1) return res.json({ success: false, message: '보유하지 않은 알입니다.' });
+        sender.inventory.splice(eggIdx, 1);
+        receiver.inventory.push(itemId);
+        sentItemName = itemId;
+    } else if (giftType === 'pet') {
+        const petIdx = sender.pets.findIndex(p => p.id === itemId);
+        if (petIdx === -1) return res.json({ success: false, message: '보유하지 않은 동물입니다.' });
+        const petObj = sender.pets.splice(petIdx, 1)[0];
+        sender.equippedPets = (sender.equippedPets || []).filter(id => id !== itemId);
+        receiver.pets.push(petObj);
+        sentItemName = `${petObj.emoji} (${petObj.rarity})`;
+    } else {
+        return res.json({ success: false, message: '잘못된 선물 유형입니다.' });
+    }
+
+    await db.collection('users').updateOne({ username: senderName }, {
+        $set: { inventory: sender.inventory, pets: sender.pets, equippedPets: sender.equippedPets }
+    });
+    await db.collection('users').updateOne({ username: targetUser }, {
+        $set: { inventory: receiver.inventory, pets: receiver.pets }
+    });
+
+    globalNotice = `🎁 [${senderName}] 님이 [${targetUser}] 님에게 ${sentItemName}을(를) 선물했습니다!`;
+    setTimeout(() => { if (globalNotice.includes(senderName)) globalNotice = ""; }, 5000);
+
+    res.json({ success: true, inventory: sender.inventory, pets: sender.pets, equippedPets: sender.equippedPets });
+});
+
 app.post('/api/admin/broadcast', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
@@ -363,12 +408,14 @@ app.post('/api/admin/broadcast', (req, res) => {
 app.post('/api/admin/spawn_special', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
-    const { type, stageIndex } = req.body;
+    const { type, stageIndex } = req.body; // type: cosmic, secret, divine
     const slotIdx = Math.floor(Math.random() * 5);
-    const eggName = `${STAGES[stageIndex].name.split(' ')[1]}${type === 'cosmic' ? '코스믹알' : '시크릿알'}`;
+    const stagePrefix = STAGES[stageIndex].name.split(' ')[1];
+    let eggName = `${stagePrefix}${type === 'cosmic' ? '코스믹알' : type === 'secret' ? '시크릿알' : '디바인알'}`;
+    
     globalSpecialEgg = { type, stageIndex, slotIndex: slotIdx, eggName };
-    globalNotice = `📢 작자가 [${STAGES[stageIndex].name}]에 ${type === 'cosmic' ? '코스믹 알' : '시크릿 알'}을 생성했습니다!`;
-    lastSoundEvent = { id: Date.now(), sound: type === 'cosmic' ? 'cosmic' : 'secret' };
+    globalNotice = `📢 작자가 [${STAGES[stageIndex].name}]에 ${type === 'cosmic' ? '코스믹 알' : type === 'secret' ? '시크릿 알' : '디바인 알'}을 생성했습니다!`;
+    lastSoundEvent = { id: Date.now(), sound: type === 'cosmic' ? 'cosmic' : type === 'secret' ? 'secret' : 'admineffect' };
     res.json({ success: true, eggName, stageIndex, slotIndex: slotIdx });
 });
 
@@ -394,7 +441,6 @@ app.post('/api/admin/trigger_buff', (req, res) => {
     res.json({ success: true, activeBuffs });
 });
 
-// 💡 관리자 에러 효과 발동 (전원 사운드 브로드캐스트)
 app.post('/api/admin/trigger_error_event', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
@@ -649,7 +695,16 @@ app.post('/api/hatch', async (req, res) => {
     let baseMps = 10;
     let actualSourceEgg = eggName;
 
-    if (eggName === '에러알') {
+    // 💡 디바인 알 부화
+    if (eggName.includes('디바인알')) {
+        const stagePrefix = eggName.replace('디바인알', '');
+        const matchedStage = STAGES.find(s => s.name.includes(stagePrefix)) || STAGES[6];
+        actualSourceEgg = matchedStage.eggName;
+        const pool = PET_POOLS[actualSourceEgg];
+        pickedEmoji = pool[pool.length - 1]; // 디바인 확정
+        rarity = '디바인';
+        baseMps = BASE_MPS[actualSourceEgg] * 10;
+    } else if (eggName === '에러알') {
         const isSecret = Math.random() < 0.1;
         pickedEmoji = isSecret ? '☠️' : '🦠';
         rarity = isSecret ? '비밀' : '코스믹';
@@ -700,7 +755,13 @@ app.post('/api/hatch', async (req, res) => {
         rarity = getPetRarity(eggName, randomIndex, pool.length);
     }
     
-    const rawWeight = 1.0 + Math.pow(Math.random(), 4) * 9999.0;
+    // 💡 무게 계산 (🏋️ 무게확률 버프 시 15% 확률로 우량 무게 부여)
+    const isWeightBuff = getBuffMult('weightBuff') > 1;
+    let rawWeight = 1.0 + Math.pow(Math.random(), 4) * 9999.0;
+    if (isWeightBuff && Math.random() < 0.15) {
+        rawWeight = 1500.0 + Math.random() * 3500.0; // 1,500 ~ 5,000kg 수준
+    }
+
     const weight = Math.round(rawWeight * 10) / 10;
     const weightBonus = 1 + (weight * 0.002);
     const mps = Math.floor(baseMps * weightBonus);
