@@ -21,6 +21,7 @@ function authenticateUser(req) {
     return sessions.get(token);
 }
 
+// 💡 신규 '코블 점프패드' (50조 / x40) 추가
 const SHOP_ITEMS = {
     '기본 점핑패드': { price: 0, mult: 1 },
     '골드 점프패드': { price: 500000, mult: 1.5 },
@@ -28,7 +29,8 @@ const SHOP_ITEMS = {
     '무지개 점프패드': { price: 300000000, mult: 4 },
     '다크 점프패드': { price: 8000000000, mult: 7 },
     '공허 점프패드': { price: 200000000000, mult: 15 },
-    '천상 점프패드': { price: 10000000000000, mult: 30 }
+    '천상 점프패드': { price: 10000000000000, mult: 30 },
+    '코블 점프패드': { price: 50000000000000, mult: 40 }
 };
 
 const STAGES = [
@@ -40,7 +42,7 @@ const STAGES = [
     { name: 'Lv.6 우주', escapeClicks: 50000000, eggName: '우주알' },
     { name: 'Lv.7 천사', escapeClicks: 150000000, eggName: '천사알' },
     { name: 'Lv.8 악마', escapeClicks: 800000000, eggName: '악마알' },
-    { name: 'Lv.9 마법의 숲', escapeClicks: 2500000000, eggName: '마법숲알' } // 💡 신규 최고난도 맵
+    { name: 'Lv.9 마법의 숲', escapeClicks: 2500000000, eggName: '마법숲알' }
 ];
 
 const PET_POOLS = {
@@ -102,6 +104,7 @@ const stagesState = STAGES.map(() => ({
 
 const userLocations = new Map();
 const onlineUsers = new Map();
+const userPrivateNotices = new Map(); // 💡 유저별 개인 알림 수신함 (선물 등)
 
 let isNight = false;
 let cycleTimer = 300;
@@ -280,6 +283,7 @@ app.post('/api/logout', (req, res) => {
         if (username) {
             onlineUsers.delete(username);
             userLocations.delete(username);
+            userPrivateNotices.delete(username);
         }
     }
     res.clearCookie('auth_session'); 
@@ -300,7 +304,13 @@ app.get('/api/userdata', async (req, res) => {
         if (!user.inventory.includes('트랩') && user.installedTrapStage === null) {
             user.inventory.push('트랩');
         }
-        res.json({ success: true, user, isAdmin: username === '작자', adminSuperUpgrade });
+        res.json({ 
+            success: true, 
+            user, 
+            isAdmin: username === '작자', 
+            adminSuperUpgrade,
+            currentCutsceneId: lastCutsceneEvent.id // 💡 로그인 시점 최신 컷신 ID 전달
+        });
     } else res.json({ success: false });
 });
 
@@ -310,7 +320,7 @@ app.post('/api/finish_intro', async (req, res) => {
     res.json({ success: true });
 });
 
-app.post('/api/sync_stage', (req, res) => {
+app.post('/api/sync_stage', async (req, res) => {
     const username = authenticateUser(req);
     const { stageIndex } = req.body;
     if (!username) return res.json({ success: false });
@@ -332,6 +342,16 @@ app.post('/api/sync_stage', (req, res) => {
 
     const currentStageState = (stageIndex >= 0 && stageIndex < stagesState.length) ? stagesState[stageIndex] : null;
 
+    // 💡 개인 알림 추출 (선물 수신 등)
+    let privateNotice = "";
+    if (userPrivateNotices.has(username)) {
+        privateNotice = userPrivateNotices.get(username);
+        userPrivateNotices.delete(username);
+    }
+
+    // 💡 실시간 인벤토리 및 펫 동기화 (받은 선물 즉각 반영)
+    const userDoc = await db.collection('users').findOne({ username }, { projection: { inventory: 1, pets: 1, equippedPets: 1 } });
+
     res.json({
         success: true,
         isNight,
@@ -340,6 +360,7 @@ app.post('/api/sync_stage', (req, res) => {
         errorCycleTimer,
         upcomingSpecialType,
         globalNotice,
+        privateNotice,
         trapNotice,
         globalSpecialEgg,
         usersInStage,
@@ -347,14 +368,17 @@ app.post('/api/sync_stage', (req, res) => {
         adminSuperUpgrade,
         lastSoundEvent,
         lastCutsceneEvent,
+        inventory: userDoc ? userDoc.inventory : [],
+        pets: userDoc ? userDoc.pets : [],
+        equippedPets: userDoc ? userDoc.equippedPets : [],
         slots: currentStageState ? currentStageState.slots : []
     });
 });
 
-// 💡 유저 간 선물하기 API (알/동물)
+// 💡 선물 보내기: 받는 사람에게만 개인 알림 부여 및 DB 즉시 교환
 app.post('/api/send_gift', async (req, res) => {
     const senderName = authenticateUser(req);
-    const { targetUser, giftType, itemId } = req.body; // giftType: 'egg' | 'pet'
+    const { targetUser, giftType, itemId } = req.body;
     if (!senderName) return res.json({ success: false, message: '인증 실패' });
     if (senderName === targetUser) return res.json({ success: false, message: '자신에게는 보낼 수 없습니다.' });
 
@@ -387,8 +411,8 @@ app.post('/api/send_gift', async (req, res) => {
         $set: { inventory: receiver.inventory, pets: receiver.pets }
     });
 
-    globalNotice = `🎁 [${senderName}] 님이 [${targetUser}] 님에게 ${sentItemName}을(를) 선물했습니다!`;
-    setTimeout(() => { if (globalNotice.includes(senderName)) globalNotice = ""; }, 5000);
+    // 💡 받는 사람에게만 알림 저장
+    userPrivateNotices.set(targetUser, `🎁 [${senderName}] 님이 ${sentItemName}을(를) 선물로 보냈습니다!`);
 
     res.json({ success: true, inventory: sender.inventory, pets: sender.pets, equippedPets: sender.equippedPets });
 });
@@ -408,7 +432,7 @@ app.post('/api/admin/broadcast', (req, res) => {
 app.post('/api/admin/spawn_special', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
-    const { type, stageIndex } = req.body; // type: cosmic, secret, divine
+    const { type, stageIndex } = req.body;
     const slotIdx = Math.floor(Math.random() * 5);
     const stagePrefix = STAGES[stageIndex].name.split(' ')[1];
     let eggName = `${stagePrefix}${type === 'cosmic' ? '코스믹알' : type === 'secret' ? '시크릿알' : '디바인알'}`;
@@ -456,7 +480,7 @@ app.post('/api/admin/trigger_error_event', (req, res) => {
 app.post('/api/admin/trigger_cutscene', (req, res) => {
     const username = authenticateUser(req);
     if (username !== '작자') return res.status(403).json({ success: false, message: '권한이 없습니다.' });
-    lastCutsceneEvent = { id: Date.now() };
+    lastCutsceneEvent = { id: Date.now() }; // 새로운 ID 발급
     res.json({ success: true });
 });
 
@@ -695,13 +719,12 @@ app.post('/api/hatch', async (req, res) => {
     let baseMps = 10;
     let actualSourceEgg = eggName;
 
-    // 💡 디바인 알 부화
     if (eggName.includes('디바인알')) {
         const stagePrefix = eggName.replace('디바인알', '');
         const matchedStage = STAGES.find(s => s.name.includes(stagePrefix)) || STAGES[6];
         actualSourceEgg = matchedStage.eggName;
         const pool = PET_POOLS[actualSourceEgg];
-        pickedEmoji = pool[pool.length - 1]; // 디바인 확정
+        pickedEmoji = pool[pool.length - 1];
         rarity = '디바인';
         baseMps = BASE_MPS[actualSourceEgg] * 10;
     } else if (eggName === '에러알') {
@@ -755,11 +778,10 @@ app.post('/api/hatch', async (req, res) => {
         rarity = getPetRarity(eggName, randomIndex, pool.length);
     }
     
-    // 💡 무게 계산 (🏋️ 무게확률 버프 시 15% 확률로 우량 무게 부여)
     const isWeightBuff = getBuffMult('weightBuff') > 1;
     let rawWeight = 1.0 + Math.pow(Math.random(), 4) * 9999.0;
     if (isWeightBuff && Math.random() < 0.15) {
-        rawWeight = 1500.0 + Math.random() * 3500.0; // 1,500 ~ 5,000kg 수준
+        rawWeight = 1500.0 + Math.random() * 3500.0;
     }
 
     const weight = Math.round(rawWeight * 10) / 10;
