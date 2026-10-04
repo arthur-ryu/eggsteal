@@ -103,7 +103,6 @@
         .start-run-btn { padding: 20px 50px; font-size: clamp(24px, 4vw, 32px); font-weight: 900; background: linear-gradient(135deg, #ff7675, #d63031); color: #fff; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 10px 30px rgba(214, 48, 49, 0.4); transition: 0.2s; }
         .start-run-btn:hover { transform: scale(1.05); box-shadow: 0 15px 40px rgba(214, 48, 49, 0.6); }
 
-        /* 💡 맵 선택 패널: z-index 900 최상위 배치 및 모바일 반응형 완전 대응 */
         #map-panel { 
             position: absolute; right: -450px; top: 50%; transform: translateY(-50%); 
             display: flex; flex-direction: column; gap: 8px; z-index: 900; 
@@ -139,10 +138,20 @@
         #running-overlay { display: none; position: absolute; inset: 0; z-index: 10; cursor: pointer; }
         #ingame-ui { display: none; width: 100%; height: 100%; position: absolute; z-index: 20; pointer-events: none; }
         
+        /* 💡 사이드바 기본 및 모바일 반응형 */
         .sidebar { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
         .sq-btn { width: 64px; height: 64px; background: rgba(255, 255, 255, 0.9); border-radius: 14px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; font-weight: 800; cursor: pointer; backdrop-filter: blur(8px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); transition: 0.15s; }
         .sq-btn:hover { transform: scale(1.05); }
         .sq-btn span { font-size: 20px; margin-bottom: 2px; }
+
+        @media screen and (max-height: 500px), screen and (max-width: 768px) {
+            .sidebar { left: 10px; gap: 5px; }
+            .sq-btn { width: 48px; height: 48px; border-radius: 10px; font-size: 9px; }
+            .sq-btn span { font-size: 16px; margin-bottom: 1px; }
+            .status-box { bottom: 10px; left: 10px; padding: 8px 14px; font-size: 13px; }
+            .money-text { font-size: 15px; margin-top: 2px; }
+            .coin-text { font-size: 11px; }
+        }
 
         .btn-dex { border: 2px solid #00d2d3; color: #00a8ff; }
         .btn-inv { border: 2px solid #ff4757; color: #ff4757; }
@@ -226,7 +235,7 @@
 
         .rarity-divine {
             border: 3px solid transparent !important;
-            background: linear-gradient(#fff, #fff) padding-box, linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3, #ff0000) border-box !important;
+            background: linear-gradient(#fff, #fff) padding-box, linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00bb00, #0000ff, #4b0082, #9400d3, #ff0000) border-box !important;
             background-size: 200% auto !important;
             animation: rainbowFlow 2s linear infinite !important;
         }
@@ -274,7 +283,6 @@
         <div id="cutscene-image"></div>
     </div>
 
-    <!-- 💡 4단 순환 BGM -->
     <audio id="snd-bg" src="background.mp3" preload="auto"></audio>
     <audio id="snd-bg2" src="background2.mp3" preload="auto"></audio>
     <audio id="snd-bg3" src="background3.mp3" preload="auto"></audio>
@@ -356,7 +364,6 @@
             <button onclick="logout();" style="padding: 10px 25px; font-size: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.6); background: rgba(0,0,0,0.4); color: #fff; cursor: pointer;">로그아웃</button>
         </div>
 
-        <!-- 💡 맵 선택 패널: z-index 900 최상위 & 닫기 버튼 최우선 배치 -->
         <div id="map-panel">
             <div class="map-panel-header">
                 <h3 style="color:#0984e3; font-size:18px;">🗺️ 맵 선택</h3>
@@ -426,9 +433,9 @@
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header"><span>📋 에러 뽑기 목록 및 확률</span><button class="close-btn" onclick="closeModal('gacha-rates-modal')">✕</button></div>
             <div style="padding:10px; font-size:14px; line-height:1.8; color:#2d3436;">
-                <div>💰 <b>자금 (5,000원 ~ 1,000,000원):</b> 50%</div>
+                <div>💰 <b>자금 (5K ~ 1M원):</b> 50%</div>
                 <div style="font-size:11px; color:#636e72; margin-left:10px;">* 높은 금액일수록 확률 감소</div>
-                <div>⚡ <b>클릭 파워 (100 ~ 5,000):</b> 42.5%</div>
+                <div>⚡ <b>클릭 파워 (100 ~ 5K):</b> 42.5%</div>
                 <div style="font-size:11px; color:#636e72; margin-left:10px;">* 높은 수치일수록 확률 감소</div>
                 <div>🌌 <b>랜덤 코스믹 알:</b> 7%</div>
                 <div>🦠 <b>에러 알:</b> 0.5%</div>
@@ -469,7 +476,7 @@
                 <div class="admin-section">
                     <h5>👾 에러 이벤트 제어</h5>
                     <div class="admin-row" style="margin-bottom:6px;">
-                        <button class="admin-btn" style="background:#00b894;" onclick="triggerErrorEventAdmin()">⚠️️ 에러 효과 즉시 5분 실행</button>
+                        <button class="admin-btn" style="background:#00b894;" onclick="triggerErrorEventAdmin()">⚠️ 에러 효과 즉시 5분 실행</button>
                         <button class="admin-btn" style="background:#00cec9;" onclick="triggerBuffAdmin('errorCount', 2)">🦠 에러 훔치기 2배</button>
                         <button class="admin-btn" style="background:#0984e3;" onclick="triggerBuffAdmin('errorCount', 4)">🦠 에러 훔치기 4배</button>
                     </div>
@@ -485,7 +492,7 @@
                         <button class="admin-btn" style="background:#2980b9;" onclick="triggerBuffAdmin('click', 4)">👆 클릭 4배</button>
                         <button class="admin-btn" style="background:#f39c12;" onclick="triggerBuffAdmin('dayHalf', 2)">☀️ 낮절반 (2배)</button>
                         <button class="admin-btn" style="background:#d35400;" onclick="triggerBuffAdmin('dayHalf', 4)">☀️ 낮절반 (4배)</button>
-                        <button class="admin-btn" style="background:#8e44ad;" onclick="triggerBuffAdmin('weightBuff', 2)">🏋️️ 무게확률 (5분)</button>
+                        <button class="admin-btn" style="background:#8e44ad;" onclick="triggerBuffAdmin('weightBuff', 2)">🏋️ 무게확률 (5분)</button>
                     </div>
                 </div>
                 <div class="admin-section">
@@ -560,6 +567,19 @@
     </div>
 
     <script>
+        // 💡 K, M, B, T 축약 포맷 함수
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '0';
+            num = Number(num);
+            if (isNaN(num)) return '0';
+            const abs = Math.abs(num);
+            if (abs >= 1e12) return (num / 1e12).toFixed(2).replace(/\.00$/, '') + 'T';
+            if (abs >= 1e9)  return (num / 1e9).toFixed(2).replace(/\.00$/, '') + 'B';
+            if (abs >= 1e6)  return (num / 1e6).toFixed(2).replace(/\.00$/, '') + 'M';
+            if (abs >= 1e3)  return (num / 1e3).toFixed(2).replace(/\.00$/, '') + 'K';
+            return Math.floor(num).toLocaleString();
+        }
+
         let gameState = { clickPower: 1, money: 10000, errorCoins: 0, inventory: [], equipped: '', pets: [], equippedPets: [], claimedDex: [], installedTrapStage: null, isFirstLogin: false };
         let phase = 'LOBBY'; 
         let currentStageIndex = 0;
@@ -573,7 +593,7 @@
         let adminSuperUpgradeActive = false;
         let isAdminUnlocked = false;
         let clientLastSoundId = 0;
-        let clientLastCutsceneId = 0; // 💡 로드 시 서버 기준으로 즉시 동기화
+        let clientLastCutsceneId = 0;
         let isCutscenePlaying = false;
         let selectedGiftTarget = '';
         let currentGiftTab = 'egg';
@@ -603,7 +623,7 @@
             { name: '다크 점프패드', price: 8000000000, mult: 7 },
             { name: '공허 점프패드', price: 200000000000, mult: 15 },
             { name: '천상 점프패드', price: 10000000000000, mult: 30 },
-            { name: '코블 점프패드', price: 50000000000000, mult: 40 } // 💡 50조 / x40 추가
+            { name: '코블 점프패드', price: 50000000000000, mult: 40 }
         ];
 
         const STAGES = [
@@ -615,7 +635,7 @@
             { name: 'Lv.6 우주', entryClicks: 12500000, escapeClicks: 50000000, bg: 'stage6.png', boss: '👽', bossSpeed: 3500000, headStart: 80000, eggName: '우주알' },
             { name: 'Lv.7 천사', entryClicks: 60000000, escapeClicks: 150000000, bg: 'angel.png', boss: '👼', bossSpeed: 25000000, headStart: 80000, eggName: '천사알' },
             { name: 'Lv.8 악마', entryClicks: 300000000, escapeClicks: 800000000, bg: 'devi.png', boss: '😈', bossSpeed: 150000000, headStart: 50000, eggName: '악마알' },
-            { name: 'Lv.9 마법의 숲', entryClicks: 10000000000, escapeClicks: 25000000000, bg: 'lionegg.png', boss: '🦁🦋', bossSpeed: 5000000000, headStart: 50000, eggName: '마법숲알' }
+            { name: 'Lv.9 마법의 숲', entryClicks: 5000000000, escapeClicks: 25000000000, bg: 'lionegg.png', boss: '🦁🦋', bossSpeed: 5000000000, headStart: 50000, eggName: '마법숲알' }
         ];
 
         const EGG_COLORS = { 
@@ -794,7 +814,6 @@
                 gameState = data.user;
                 isUserAdmin = data.isAdmin;
                 adminSuperUpgradeActive = data.adminSuperUpgrade;
-                // 💡 접속 시점의 컷신 ID를 기억시켜 재접속 시 자동 재생 방지
                 clientLastCutsceneId = data.currentCutsceneId || 0;
                 updateAdminSuperBtnUI();
                 if (!gameState.claimedDex) gameState.claimedDex = [];
@@ -932,7 +951,6 @@
                 const syncData = await syncRes.json();
                 if (!syncData.success) return;
 
-                // 💡 가방 실시간 동기화 (받은 선물 즉각 반영)
                 if (syncData.inventory) gameState.inventory = syncData.inventory;
                 if (syncData.pets) gameState.pets = syncData.pets;
                 if (syncData.equippedPets) gameState.equippedPets = syncData.equippedPets;
@@ -953,7 +971,6 @@
                     updateMusicState();
                 }
 
-                // 💡 컷신 ID가 갱신되었을 때만 1회성 재생
                 if (syncData.lastCutsceneEvent && syncData.lastCutsceneEvent.id > clientLastCutsceneId) {
                     clientLastCutsceneId = syncData.lastCutsceneEvent.id;
                     playErrorCutscene();
@@ -982,7 +999,7 @@
 
                 const buffsEl = document.getElementById('buffs-display');
                 let buffHtml = '';
-                const buffIcons = { lucky: '🍀', money: '💸', click: '👆', dayHalf: '☀️', errorCount: '🦠', weightBuff: '🏋️' };
+                const buffIcons = { lucky: '🍀', money: '💸', click: '👆', dayHalf: '☀️️', errorCount: '🦠', weightBuff: '🏋️' };
                 const buffOps = { lucky: '×', money: '×', click: '×', dayHalf: '÷', errorCount: '×', weightBuff: '' };
                 for (const bType in liveBuffs) {
                     const b = liveBuffs[bType];
@@ -1047,7 +1064,6 @@
                     if (syncData.globalNotice) noticeLines.push(syncData.globalNotice);
                 }
 
-                // 💡 선물 수신자에게만 개인 알림 띄우기
                 if (syncData.privateNotice) {
                     noticeLines.push(syncData.privateNotice);
                     playPooledSound('complete');
@@ -1103,7 +1119,7 @@
                             else if (slot && slot.isError) labelEl.innerText = `⚠️ 에러 알 훔치기`;
                             else {
                                 const distSaved = slot ? slot.distanceProgress : 0;
-                                labelEl.innerText = distSaved > 0 ? `훔치기 (-${distSaved.toLocaleString()}m)` : `훔치기`;
+                                labelEl.innerText = distSaved > 0 ? `훔치기 (-${formatNumber(distSaved)}m)` : `훔치기`;
                             }
                         }
                     }
@@ -1262,7 +1278,7 @@
                     card.innerHTML = `
                         <span style="font-size:28px;">${pet.emoji}</span>
                         <p style="font-size:10px; font-weight:bold; color:#0984e3;">[${pet.rarity}]</p>
-                        <p style="font-size:10px;">+${pet.mps.toLocaleString()}/초</p>
+                        <p style="font-size:10px;">+${formatNumber(pet.mps)}/초</p>
                         <button onclick="confirmSendGift('pet', ${pet.id})">보내기</button>
                     `;
                     container.appendChild(card);
@@ -1446,7 +1462,7 @@
             const titleEl = document.getElementById('main-title');
             titleEl.style.background = "none";
             titleEl.style.webkitTextFillColor = "#ff4757"; 
-            titleEl.innerText = `목표 맵으로 가는 중! (0 / ${targetEntryClicks}m)`;
+            titleEl.innerText = `목표 맵으로 가는 중! (0 / ${formatNumber(targetEntryClicks)}m)`;
         }
 
         function enterMainGamePhase() {
@@ -1598,7 +1614,7 @@
             const stage = STAGES[currentStageIndex];
             let distance = Math.floor(playerProgress - bossProgress);
             if (distance < 0) distance = 0;
-            document.getElementById('chase-distance').innerText = `${stage.boss}부터 거리: ${distance}m`;
+            document.getElementById('chase-distance').innerText = `${stage.boss}부터 거리: ${formatNumber(distance)}m`;
             const zoom = (playerProgress / targetEscapeClicks) * 0.3;
             document.getElementById('bg-layer').style.transform = `scale(${1 + zoom})`;
         }
@@ -1613,10 +1629,10 @@
             playerProgress += power;
             let x = (e && e.clientX) ? e.clientX - 20 : window.innerWidth / 2;
             let y = (e && e.clientY) ? e.clientY - 40 : window.innerHeight / 2;
-            createFloatText(x, y, `+${power}`);
+            createFloatText(x, y, `+${formatNumber(power)}`);
 
             if (phase === 'MAP_RUN') {
-                document.getElementById('main-title').innerText = `목표 맵으로 가는 중! (${Math.floor(playerProgress)} / ${targetEntryClicks}m)`;
+                document.getElementById('main-title').innerText = `목표 맵으로 가는 중! (${formatNumber(playerProgress)} / ${formatNumber(targetEntryClicks)}m)`;
                 const zoom = (playerProgress / targetEntryClicks) * 0.3;
                 document.getElementById('bg-layer').style.transform = `scale(${1 + zoom})`;
                 if (playerProgress >= targetEntryClicks) enterMainGamePhase();
@@ -1655,7 +1671,7 @@
                             if (data.earnedCoins > 0) {
                                 gameState.errorCoins = data.errorCoins;
                                 updateUI();
-                                alert(`탈출 성공! 알을 훔쳤습니다! 🎉\n[${data.eggName}] 획득!\n👾 에러코인 +100개 지급 완료!`);
+                                alert(`탈출 성공! 알을 훔쳤습니다! 🎉\n[${data.eggName}] 획득!\n👾 에러코인 +${formatNumber(100)}개 지급 완료!`);
                             } else {
                                 alert(`탈출 성공!!! 🎉 [${data.eggName}] 획득!`);
                             }
@@ -1678,11 +1694,11 @@
         });
 
         function updateUI() {
-            document.getElementById('clicks-display').innerText = `기본 파워: ${gameState.clickPower}`;
-            document.getElementById('money-display').innerText = `자금: ${Math.floor(gameState.money).toLocaleString()}원`;
-            document.getElementById('error-coin-display').innerText = `에러코인: ${(gameState.errorCoins || 0).toLocaleString()}개`;
+            document.getElementById('clicks-display').innerText = `기본 파워: ${formatNumber(gameState.clickPower)}`;
+            document.getElementById('money-display').innerText = `자금: ${formatNumber(gameState.money)}원`;
+            document.getElementById('error-coin-display').innerText = `에러코인: ${formatNumber(gameState.errorCoins)}개`;
             const modalCoins = document.getElementById('modal-error-coin');
-            if (modalCoins) modalCoins.innerText = (gameState.errorCoins || 0).toLocaleString();
+            if (modalCoins) modalCoins.innerText = formatNumber(gameState.errorCoins);
             if (document.getElementById('upgrade-modal').style.display === 'flex') renderUpgrade();
         }
 
@@ -1708,7 +1724,7 @@
             stopUpgradeAuto();
         }
 
-        function renderUpgrade() { document.getElementById('modal-power-display').innerText = `현재 기본 파워: ${gameState.clickPower}`; }
+        function renderUpgrade() { document.getElementById('modal-power-display').innerText = `현재 기본 파워: ${formatNumber(gameState.clickPower)}`; }
         
         function toggleUpgradeAuto() {
             playClickSound();
@@ -1823,13 +1839,13 @@
                                     gameState.claimedDex = cData.claimedDex;
                                     updateUI();
                                     renderDex(selectedIndex);
-                                    alert(`🎉 보상 수령 완료!\n클릭 파워: +${cData.rewardPower}\n자금: +${cData.rewardMoney.toLocaleString()}원`);
+                                    alert(`🎉 보상 수령 완료!\n클릭 파워: +${formatNumber(cData.rewardPower)}\n자금: +${formatNumber(cData.rewardMoney)}원`);
                                 } else {
                                     alert(cData.message);
                                 }
                             }
                         } else {
-                            alert(`[${eggName.replace('알','')} 도감]\n동물: ${emoji}\n등급: ${rarity}\n무게: ${petData.weight || 1.0}kg\n초당 수익: +${petData.mps.toLocaleString()}원/초\n(도감 보상 수령 완료)`);
+                            alert(`[${eggName.replace('알','')} 도감]\n동물: ${emoji}\n등급: ${rarity}\n무게: ${petData.weight || 1.0}kg\n초당 수익: +${formatNumber(petData.mps)}원/초\n(도감 보상 수령 완료)`);
                         }
                     };
                 } else {
@@ -1852,7 +1868,7 @@
                     <div class="item-card">
                         <h4>${item.name}</h4>
                         <p style="color:#636e72; font-size:14px; margin-top:5px;">거리 배수: x${item.mult}</p>
-                        <p class="price">${item.price === 0 ? '기본' : item.price.toLocaleString() + '원'}</p>
+                        <p class="price">${item.price === 0 ? '기본' : formatNumber(item.price) + '원'}</p>
                         <button ${isOwned ? 'disabled' : ''} onclick="playClickSound(); buyItem('${item.name}')">
                             ${isOwned ? '구매 완료' : '구매하기'}
                         </button>
@@ -2027,7 +2043,7 @@
                         <div class="inv-item pet-card ${isEquip ? 'equipped' : ''} ${rarityClass}" style="${borderStyle ? 'border:' + borderStyle + '; background:' + bgStyle + ';' : ''}">
                             <span style="font-size:32px;">${pet.emoji}</span>
                             <p class="${textClass}" style="${textClass ? '' : 'color:' + RARITY_COLORS[rarity]}; font-size:10px; font-weight:bold; margin-top:1px;">[${rarity}] ${pet.weight ? pet.weight + 'kg' : ''}</p>
-                            <p style="color:#2d3436; font-size:11px; font-weight:bold;">+${pet.mps.toLocaleString()}원/초</p>
+                            <p style="color:#2d3436; font-size:11px; font-weight:bold;">+${formatNumber(pet.mps)}원/초</p>
                             <div class="inv-btn-group">
                                 <button class="${isEquip ? 'unequip' : ''}" onclick="playClickSound(); toggleEquipPet(${pet.id})">
                                     ${isEquip ? '해제' : '장착'}
@@ -2043,7 +2059,7 @@
         }
 
         async function sellPetConfirm(petId, sellVal) {
-            if (confirm(`이 동물을 판매하시겠습니까?\n판매 대금: +${sellVal.toLocaleString()}원 (초당 수익의 50%)`)) {
+            if (confirm(`이 동물을 판매하시겠습니까?\n판매 대금: +${formatNumber(sellVal)}원 (초당 수익의 50%)`)) {
                 const res = await fetch('/api/sell_pet', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ petId })
@@ -2055,7 +2071,7 @@
                     gameState.equippedPets = data.equippedPets;
                     updateUI();
                     renderInventory();
-                    alert(`판매 완료! +${data.soldPrice.toLocaleString()}원이 지급되었습니다.`);
+                    alert(`판매 완료! +${formatNumber(data.soldPrice)}원이 지급되었습니다.`);
                 } else {
                     alert(data.message);
                 }
@@ -2088,7 +2104,7 @@
                     gameState.pets = data.pets;
                     renderInventory();
                     const p = data.newPet;
-                    alert(`축하합니다!\n알에서 [ ${p.emoji} ] 이(가) 태어났습니다!\n등급: ${p.rarity} | 무게: ${p.weight}kg\n(초당 자동 자금 +${p.mps.toLocaleString()}원)`);
+                    alert(`축하합니다!\n알에서 [ ${p.emoji} ] 이(가) 태어났습니다!\n등급: ${p.rarity} | 무게: ${p.weight}kg\n(초당 자동 자금 +${formatNumber(p.mps)}원)`);
                 } else {
                     alert(data.message);
                 }
